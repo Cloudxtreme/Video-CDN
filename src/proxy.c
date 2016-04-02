@@ -343,7 +343,7 @@ void check_clients(pool *p)
 
             /* Incomplete request, save and continue to next client */
             if(error == -1) break;
-          }
+           }
 
           /* Then, parse headers. */
           if(state->header == NULL && state->method != NULL)

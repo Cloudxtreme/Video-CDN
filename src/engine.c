@@ -60,25 +60,25 @@ int parse_line(fsm* state)
   method = strtok(tmpbuf," ");
 
   if (method == NULL)
-  {free(tmpbuf); return 400;}
+    {free(tmpbuf); return 400;}
 
   /* Check if correct method */
   if (strncmp(method,"GET",strlen("GET")) && strncmp(method,"HEAD",strlen("HEAD"))
       && strncmp(method, "POST", strlen("POST")))
-  {free(tmpbuf); return 501;}
+    {free(tmpbuf); return 501;}
 
   if((uri = strtok(NULL," ")) == NULL)
-  {free(tmpbuf); return 400;}
+    {free(tmpbuf); return 400;}
 
   if((version = strtok(NULL, " ")) == NULL)
-  {free(tmpbuf); return 400;}
+    {free(tmpbuf); return 400;}
 
   if(strncmp(version,"HTTP/1.1",strlen("HTTP/1.1")))
-  {free(tmpbuf); return 505;}
+    {free(tmpbuf); return 505;}
 
   /* If there's one more token, malformed request */
   if(strtok(NULL," ") != NULL)
-  {free(tmpbuf); return 400;}
+    {free(tmpbuf); return 400;}
 
   /* These are all malloced by strdup, so it is safe */
   state->method = method;
@@ -134,9 +134,9 @@ int parse_headers(fsm* state)
   addtofree(state->freebuf, state->header, FREE_SIZE);
 
   if(strncmp(state->method,"POST",strlen("POST")))
-  {
-    return 0;
-  }
+    {
+      return 0;
+    }
 
   /* Now extract Content-Length: if POST */
 
@@ -151,18 +151,18 @@ int parse_headers(fsm* state)
   tmpbuf = strndup(tmpbuf, length); // Free this guy please.
 
   if(strtok(tmpbuf," ") == NULL)
-  {free(tmpbuf); return 411;}
+    {free(tmpbuf); return 411;}
 
   if((body_size = strtok(NULL, " ")) == NULL)
-  {free(tmpbuf); return 411;}
+    {free(tmpbuf); return 411;}
 
   /* Check for valid Content-Length */
   if(!validsize(body_size))
-  {free(tmpbuf); return 411;}
+    {free(tmpbuf); return 411;}
 
   /* If there's one more token, malformed request */
   if(strtok(NULL," ") != NULL)
-  {free(tmpbuf); return 400;}
+    {free(tmpbuf); return 400;}
 
   state->body_size = (size_t)atoi(body_size);
   free(tmpbuf);
@@ -234,13 +234,13 @@ int service(fsm* state)
 {
 
   if(!strncmp(state->method,"GET",strlen("GET")))
-  {
-    parse_client_message();
-  }
+    {
+      parse_client_message();
+    }
   else // Non 'GET' request, just pass it on.
-  {
+    {
 
-  }
+    }
 
   return 0;
 }
@@ -286,25 +286,25 @@ int resetbuf(fsm* state)
     return -1;
 
   if(strncmp(state->method, "POST", strlen("POST")))
-  {
-    /* length of the 1st request including CRLF */
-    length = (size_t)(strlen("\r\n\r\n") + CRLF - buf);
-  }
+    {
+      /* length of the 1st request including CRLF */
+      length = (size_t)(strlen("\r\n\r\n") + CRLF - buf);
+    }
   else
-  {
-    /* length of the 1st request including CRLF + body */
-    length = (size_t)(strlen("\r\n\r\n") + CRLF + state->body_size - buf);
-  }
+    {
+      /* length of the 1st request including CRLF + body */
+      length = (size_t)(strlen("\r\n\r\n") + CRLF + state->body_size - buf);
+    }
 
   if(length >= 8192)
-  {
-    /* buf was full, just memset */
-    memset(buf, 0, BUF_SIZE);
-    return 0;
-  }
+    {
+      /* buf was full, just memset */
+      memset(buf, 0, BUF_SIZE);
+      return 0;
+    }
 
   if(strncmp(state->method, "POST", strlen("POST")))
-      next = CRLF + 4;
+    next = CRLF + 4;
   else
     next = CRLF + 4 + state->body_size;
 
@@ -378,9 +378,9 @@ char* search_hdr(fsm* state, char* hdr, int n)
 int Recv(int fd, SSL* client_context, char* buf, int num)
 {
   if (client_context == NULL)
-  {
-    return recv(fd, buf, num, 0);
-  }
+    {
+      return recv(fd, buf, num, 0);
+    }
 
   return SSL_read(client_context, buf, num);
 }
@@ -396,9 +396,9 @@ int Recv(int fd, SSL* client_context, char* buf, int num)
 int Send(int fd, SSL* client_context, char* buf, int num)
 {
   if(client_context == NULL)
-  {
-    return send(fd, buf, num, 0);
-  }
+    {
+      return send(fd, buf, num, 0);
+    }
 
   return SSL_write(client_context, buf, num);
 }
@@ -406,13 +406,13 @@ int Send(int fd, SSL* client_context, char* buf, int num)
 void addtofree(char** freebuf, char* ptr, int bufsize)
 {
   for (int i = 0; i < bufsize; i++)
-  {
-    if (freebuf[i] == NULL)
     {
-      freebuf[i] = ptr;
-      return;
+      if (freebuf[i] == NULL)
+        {
+          freebuf[i] = ptr;
+          return;
+        }
     }
-  }
 
   fprintf(stderr,"ADDTOFREE ERR");
   exit(0);
@@ -421,11 +421,11 @@ void addtofree(char** freebuf, char* ptr, int bufsize)
 void delfromfree(char** freebuf, int bufsize)
 {
   for (int i = 0; i < bufsize; i++)
-  {
-    if (freebuf[i] != NULL)
-      free(freebuf[i]);
-    freebuf[i] = NULL;
-  }
+    {
+      if (freebuf[i] != NULL)
+        free(freebuf[i]);
+      freebuf[i] = NULL;
+    }
   return;
 }
 
@@ -437,23 +437,23 @@ void delfromfree(char** freebuf, int bufsize)
 void *memmem(const void *haystack, size_t hlen,
              const void *needle, size_t nlen)
 {
-    int needle_first;
-    const void *p = haystack;
-    size_t plen = hlen;
+  int needle_first;
+  const void *p = haystack;
+  size_t plen = hlen;
 
-    if (!nlen)
-        return NULL;
+  if (!nlen)
+    return NULL;
 
-    needle_first = *(unsigned char *)needle;
+  needle_first = *(unsigned char *)needle;
 
-    while (plen >= nlen && (p = memchr(p, needle_first, plen - nlen + 1)))
+  while (plen >= nlen && (p = memchr(p, needle_first, plen - nlen + 1)))
     {
-        if (!memcmp(p, needle, nlen))
-            return (void *)p;
+      if (!memcmp(p, needle, nlen))
+        return (void *)p;
 
-        p++;
-        plen = hlen - (p - haystack);
+      p++;
+      plen = hlen - (p - haystack);
     }
 
-    return NULL;
+  return NULL;
 }

@@ -26,7 +26,7 @@ void gen_client_message(client_req *req){
 	2. If possible, get the segno. Set the content_type value.
 	3. Generate the server response.
 */
-void parse_client_message(char *msg, int bitrate){
+void parse_client_message() {
 	return;
 }
 
