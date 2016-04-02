@@ -57,7 +57,6 @@ void add_client(int client_fd, char* wwwfolder, SSL* client_context, pool *p);
 void check_clients(pool *p);
 void cleanup(int sig);
 void sigchld_handler(int sig);
-int  daemonize(char* lock_file);
 
 /** Definitions **/
 
@@ -73,10 +72,12 @@ int main(int argc, char* argv[])
   }
 
   /* Ignore SIGPIPE */
-  /* Handle SIGINT to cleanup after liso */
-  /* Install SIGCHLD handler to reap children */
   signal(SIGPIPE, SIG_IGN);
+
+  /* Handle SIGINT to cleanup after liso */
   signal(SIGINT,  cleanup);
+
+  /* Install SIGCHLD handler to reap children */
   signal(SIGCHLD, sigchld_handler);
 
   /* Parse cmdline args */
@@ -243,12 +244,13 @@ void add_client(int client_fd, pool *p)
   state->end_idx    = 0;
   state->resp_idx   = 0;
 
-  state->conn           = 1;
-  state->context = client_context;
+  state->conn       = 1;
+  bzero(state->cli_ip, INET_ADDRSTRLEN);
 
   state->pipefds    = -1;
 
   memset(state->freebuf, 0, FREE_SIZE*sizeof(char*));
+
 
   for (i = 0; i < FD_SETSIZE; i++)  /* Find an available slot */
   {
@@ -279,67 +281,6 @@ void add_client(int client_fd, pool *p)
   }
 }
 
-/*
-  Makes a copy of the client's fsm struct.
- */
-int add_cgi(int client_fd, fsm* state, pool* p)
-{
-  int i; fsm* cgi;
-
-  /* Create a fsm for this cgi process */
-  cgi = malloc(sizeof(struct state));
-
-  /* Create initial values for fsm */
-  memset(cgi->request,  0, BUF_SIZE);
-  memset(cgi->response, 0, BUF_SIZE);
-  strncpy(cgi->response, state->response, state->resp_idx);
-
-  cgi->method     = NULL;
-  cgi->uri        = NULL;
-  cgi->version    = NULL;
-  cgi->header     = NULL;
-  cgi->body       = NULL;
-  cgi->body_size  = 0; // No body as of yet
-
-  cgi->end_idx    = 0;
-  cgi->resp_idx   = state->resp_idx;
-
-  cgi->conn           = 1;
-
-  memset(cgi->freebuf, 0, FREE_SIZE*sizeof(char*));
-
-  for (i = 0; i < FD_SETSIZE; i++)  /* Find an available slot */
-  {
-    if(p->clientfd[i] < 0) {   /* Found one free slot */
-      p->clientfd[i] = client_fd;
-
-      /* Add the descriptor to the master set */
-      FD_SET(state->pipefds, &p->masterfds);
-
-      /* Add fsm to pool */
-      p->states[i] = cgi;
-
-      /* Update max descriptor and max index */
-      if (state->pipefds > p->maxfd)
-        p->maxfd = state->pipefds;
-      if (i > p->maxi)
-        p->maxi = i;
-      break;
-    }
-  }
-
-  if (i == FD_SETSIZE)   /* There are no empty slots */
-  {
-    client_error(state, 500);
-    Send(client_fd, state->context, state->response, state->resp_idx);
-    free(cgi);
-    return -1;
-  }
-
-  state->pipefds = -1;
-  return 0;
-}
-
 /*********************************************************************/
 /* @brief Iterates through active clients and reads requests.        */
 /*                                                                   */
@@ -364,49 +305,6 @@ void check_clients(pool *p)
       continue;
 
     state     = p->states[i];
-    cgi_fd    = state->pipefds;
-
-    /* Check first for a CGI process to be read from, if any */
-    if (client_fd > 0 && state->pipefds > 0 &&
-        FD_ISSET(state->pipefds, &p->readfds))
-    {
-      cgi_fd = state->pipefds;
-      /* Check if cgi process is ready to be read */
-      if(cgi_fd > 0 && FD_ISSET(cgi_fd, &p->readfds))
-      {
-        /* receive bytes from the cgi process */
-        n = read(cgi_fd, buf, BUF_SIZE);
-
-        fprintf(stderr,"%s", buf);
-
-        /* We received some bytes, store em*/
-        if(n >= 1)
-        {
-          store_request(buf, n, state);
-        }
-
-        /* CGI process performed orderly shutdown */
-        if(n == 0)
-        {
-          if(Send(client_fd, state->context, state->request, state->end_idx)
-             != state->end_idx)
-          {
-            rm_client(client_fd, p, "CGI process failed", i);
-          }
-          /* Done with CGI, remove cgifd from select */
-          rm_cgi(cgi_fd, p, "CGI iz dun", i);
-        }
-
-        /* Error reading from CGI process */
-        if(n == -1)
-        {
-          rm_client(client_fd, p, "CGI process failed", i);
-        }
-      }
-      continue;
-    }
-
-    if(state->pipefds > 0) continue; // This is a CGI fd, do not let it go below
 
     /* If a descriptor is ready to be read, read a line from it */
     if (client_fd > 0 && FD_ISSET(client_fd, &p->readfds))
@@ -484,7 +382,7 @@ void check_clients(pool *p)
             if(error == -1) break;
           }
 
-          /* If everything has been parsed, write to client */
+          /* If everything has been parsed, service the client */
           if(state->method != NULL && state->header != NULL)
           {
             if ((error = service(state)) != 0)
@@ -536,6 +434,8 @@ void check_clients(pool *p)
         } while(error == 0 && state->conn);
         continue;
       }
+
+      /* Check if the server sent data to this client */
 
       /* Client sent EOF, close socket. */
       if (n == 0)

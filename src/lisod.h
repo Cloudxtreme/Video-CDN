@@ -27,7 +27,9 @@ typedef struct state {
   int   conn;      // 1 = keep-alive; 0 = close
   char  cli_ip[INET_ADDRSTRLEN];   // Store the IP in string form
 
-  int   pipefds;           //  file descriptor of script  to be added to select
+  int servfd;      // File descriptor of server sock for this client.
+  serv_rep* servst; // Keep state of the server of this client.
+
   char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeing
 } fsm;
 

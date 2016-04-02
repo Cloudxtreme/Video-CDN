@@ -20,11 +20,6 @@
 
 #define FREE_SIZE 40
 
-extern short listen_port;
-extern short https_port;
-extern char* cgipath;
-
-
 /**********************************************************/
 /* @brief Parses a given buf based on state and populates */
 /* a struct with parsed tokens if successful. If request  */
@@ -237,139 +232,16 @@ int store_request(char* buf, int size, fsm* state)
 /*********************************************************************/
 int service(fsm* state)
 {
-  struct tm *Date; time_t t;
-  struct tm *Modified;
-  struct stat meta;
-  char timestr[200] = {0}; char type[40] = {0};
-  char* response = state->response;
-  char* cgi = NULL; char* query = NULL;
-  FILE *file;
 
-  int pathlength = strlen(state->uri) + strlen(state->www) + strlen("/") + 1;
-  char* path = malloc(pathlength);
-  memset(path,0,pathlength);
-
-  if(!strncmp(state->uri, "/", strlen("/")) && strlen(state->uri) == 1)
+  if(!strncmp(state->method,"GET",strlen("GET")))
   {
-    strncat(path,state->www,strlen(state->www));
-    strncat(path,"/",strlen("/"));
-    strncat(path,"index.html",strlen("index.html"));
+    parse_client_message();
   }
-  else
-  {
-    /* Check for ? */
-    cgi = memmem(state->uri, strlen(state->uri), "/cgi/", strlen("/cgi/"));
-    query = memmem(state->uri, strlen(state->uri), "?", strlen("?"));
-
-    if(cgi != NULL) // GET with cgi
-    {
-      if(query != NULL)
-        strncat(path, state->uri, (query - state->uri));
-      else
-        strncat(path, state->uri, strlen(state->uri));
-    }
-    else
-    { // Regular GET or HEAD
-      if(!strncmp(state->method, "GET", strlen("GET")) ||
-         !strncmp(state->method,"HEAD",strlen("HEAD")))
-      {
-        strncat(path, state->www, strlen(state->www));
-        strncat(path,"/",strlen("/"));
-        strncat(path,state->uri,strlen(state->uri));
-      }
-      else // POST
-      {
-        strncat(path, state->uri, strlen(state->uri));
-      }
-    }
-  }
-
-  t = time(NULL);
-  Date = gmtime(&t);
-
-  if (Date == NULL)
-  {
-    return 500;
-  }
-
-  /* Grab Date of message */
-  if(strftime(timestr, 200, "%a, %d %b %Y %H:%M:%S %Z" ,Date) == 0)
-  {
-    return 500;
-  }
-
-  if(!strncmp(state->method,"GET",strlen("GET")) ||
-     !strncmp(state->method,"HEAD",strlen("HEAD")))
+  else // Non 'GET' request, just pass it on.
   {
 
-    if(!strncmp(state->method, "GET", strlen("GET")))
-    {
-      /* To CGI or not to CGI */
-      if(cgi != NULL)
-      {
-        if(exec_cgi(state, path, 0))
-          return 500;
-      }
-      else
-      {
-        /* Check if file exists */
-        if(stat(path, &meta) == -1)
-        {
-          return 404;
-        }
-
-        /* Open uri specified by client and save it in state*/
-        file = fopen(path,"r");
-        state->body = malloc(meta.st_size); // free here brah
-        state->body_size = meta.st_size;
-        fread(state->body,1,state->body_size,file);
-        fclose(file);
-        addtofree(state->freebuf, state->body, FREE_SIZE);
-      }
-    }
-    else // HEAD
-    {
-      state->body = NULL;
-      state->body_size = 0;
-    }
-
-    if(cgi == NULL)
-    {
-      sprintf(response, "HTTP/1.1 200 OK\r\n");
-      sprintf(response, "%sDate: %s\r\n", response, timestr);
-      sprintf(response, "%sServer: Liso/1.0\r\n", response);
-
-      if(!state->conn)
-        sprintf(response, "%sConnection: close\r\n", response);
-      else
-        sprintf(response, "%sConnection: keep-alive\r\n", response);
-
-      if(mimetype(state->uri, strlen(state->uri), type))
-        sprintf(response, "%sContent-Type: %s\r\n", response, type);
-
-
-
-      Modified = gmtime(&meta.st_mtime);
-      sprintf(response, "%sContent-Length: %jd\r\n", response, meta.st_size);
-      memset(timestr, 0, 200);
-      if(strftime(timestr, 200, "%a, %d %b %Y %H:%M:%S %Z" , Modified) == 0)
-      {
-        return 500;
-      }
-
-      sprintf(response, "%sLast-Modified: %s\r\n\r\n", response, timestr);
-    }
-
-    state->resp_idx = (int)strlen(response);
-  }
-  else // We got a POST over here.
-  {
-    if(exec_cgi(state, path, 1))
-      return 500;
-    state->resp_idx = (int)strlen(response);
   }
 
-  free(path);
   return 0;
 }
 

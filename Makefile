@@ -12,7 +12,7 @@ VPATH 	=	src
 
 all: lisod
 
-lisod: proxy.c logger.o engine.o
+lisod: proxy.c logger.o engine.o parse.o
 	$(CC) $(CFLAGS) proxy.c logger.o engine.o -o proxy
 
 logger: logger.h logger.c
@@ -20,6 +20,9 @@ logger: logger.h logger.c
 
 engine: engine.h engine.c
 	$(CC) $(CFLAGS) engine.c -o engine.o
+
+parse: parse.h parse.c
+	$(CC) $(CFLAGS) parse.c -o parse.o
 
 handin:
 	(make clean; cd ..; tar cvf fabubake.tar 15-441-project-1 --exclude cp1_checker.py --exclude starter_code --exclude www --exclude flaskr --exclude handin.txt --exclude logfile --exclude ".gdbinit" --exclude ".gitignore" --exclude cgi_script.py --exclude cgi_example.c --exclude daemonize.c);
