@@ -1,3 +1,4 @@
+#include "parse.h"
 
 //Should calculate the bitrate by first finding the throughput and then
 //comparing the result to the approprtiate bitrate in the global array.
@@ -27,4 +28,41 @@ void gen_client_message(client_req *req){
 */
 void parse_client_message(char *msg, int bitrate){
 	return;
+}
+
+/*********************************************************/
+/* @brief Parse a .f4m file to obtain bitrates.          */
+/* @param state - state of the client to store bitrates. */
+/* @param f4m   - The .f4m file.                         */
+/*********************************************************/
+void parse_f4m(fsm* state, FILE* f4m)
+{
+  char *buf = NULL, *needle1 = NULL, *needle2 = NULL;
+  char[200] number = {0};
+  size_t n  = 0, len = 0;
+  int bitrate_f4m = 0;
+  struct bitrate* rate = NULL;
+
+  /* Getline allocates a null-terminated buffer for you internally. */
+  while((getline(&buf, &n, f4m) != -1))
+    {
+      needle1 = strstr(buf, "bitrate=");
+
+      if(!needle1)
+        continue;
+
+      needle2 = strstr(needle1 + strlen("bitrate=") + 1, "\"");
+      len     = needle2 - (needle1 + strlen("bitrate=") + 1);
+
+      bzero(number, 200);
+      strncpy(number, needle1 + strlen("bitrate=") + 1, len);
+
+      bitrate_f4m = atoi(number);
+
+      rate          = calloc(sizeof(struct bitrate), 1);
+      rate->bitrate = bitrate_f4m;
+      HASH_ADD_INT(state->all_bitrates, bitrate, rate);
+    }
+
+  free(buf);
 }

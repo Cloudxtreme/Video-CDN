@@ -6,6 +6,11 @@
 #ifndef PARSE_H
 #define PARSE_H
 
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
+#include <stdlib.h>
+
 #define BUF_SHORT 		1024	//A small character buffer size
 
 /* Stores information all the relevant information about the incoming request
