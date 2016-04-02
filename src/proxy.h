@@ -37,7 +37,6 @@ typedef struct state {
   struct timeval end;   // Time of receiving complete chunk data.
 
   float avg_tput;        // Average tput using EWMA.
-  float bitrate;         // Requested bitrate.
 
   char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeing
 } fsm;
@@ -52,7 +51,35 @@ typedef struct pool {
   int nready;        /* Number of ready descriptors from select */
   int maxi;          /* Max index of clientfd array             */
 
-  int clientfd[FD_SETSIZE];   /* Array of active client descriptors */
+  int clientfd[FD_SETSIZE];   /* Array of active client descript  char request[BUF_SIZE]; // arr of chars containing the text of the request.
+  char response[BUF_SIZE]; // arr of chars containing response to client.
+
+  char* method; // index into method
+  char* uri;    // index into uri
+  char* version; // you get the idea
+  char* header;  // index into the headers
+
+  char* body;  // alloc memory for body to send
+  ssize_t body_size; // size of body to send
+
+  int end_idx; // used to mark end of data in buffer
+  int resp_idx; // used to mark end of response buffer
+
+  int   conn;      // 1 = keep-alive; 0 = close
+  char  serv_ip[INET_ADDRSTRLEN];   // Store the IP in string form
+
+  int servfd;      // File descriptor of server sock for this client.
+  serv_rep* servst; // Keep state of the server of this client.
+
+  /* Linkd list of bitrates */
+  struct bitrate *all_bitrates;
+
+  struct timeval start; // Time of receiving complete chunk request.
+  struct timeval end;   // Time of receiving complete chunk data.
+
+  float avg_tput;        // Average tput using EWMA.
+
+  char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeingors */
   fsm* states[FD_SETSIZE]; /* Array of states for each client */
   // char data[FD_SETSIZE][BUF_SIZE];   /* Array that contains data from client */
 
