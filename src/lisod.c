@@ -37,6 +37,7 @@
 #include "lisod.h"
 #include "logger.h"
 #include "engine.h"
+#include "parse.h"
 
 /** Global vars **/
 FILE* logfile;   /* Legitimate use of globals, I swear! */
@@ -57,6 +58,7 @@ void add_client(int client_fd, char* wwwfolder, SSL* client_context, pool *p);
 void check_clients(pool *p);
 void cleanup(int sig);
 void sigchld_handler(int sig);
+void connect_server(fsm* state);
 
 /** Definitions **/
 
@@ -247,10 +249,9 @@ void add_client(int client_fd, pool *p)
   state->conn       = 1;
   bzero(state->cli_ip, INET_ADDRSTRLEN);
 
-  state->pipefds    = -1;
+  connect_server(state);
 
   memset(state->freebuf, 0, FREE_SIZE*sizeof(char*));
-
 
   for (i = 0; i < FD_SETSIZE; i++)  /* Find an available slot */
   {
@@ -452,28 +453,6 @@ void check_clients(pool *p)
   } // End of client loop.
 }
 
-/********************************************************************/
-/* @brief Removes a CGI socket from the pool of states and clients, */
-/*   freeing up resources and cleaning up memory.                   */
-/*                                                                  */
-/* @param cgi_fd  The CGI fd to be removed from the pool            */
-/* @param p       The pool from which cgi_fd is to be removed       */
-/* @param logmsg  message to write to logfile                       */
-/* @param i       The index into the pool                           */
-/********************************************************************/
-void rm_cgi(int cgi_fd, pool* p, char* logmsg, int i)
-{
-  fsm* state = p->states[i];
-  delfromfree(state->freebuf, FREE_SIZE);
-  free(state);
-
-  close(cgi_fd);
-  FD_CLR(cgi_fd, &p->masterfds);
-  p->clientfd[i] = -1;
-  log_error(logmsg, logfile);
-}
-
-
 /***************************************************************************/
 /* @brief Removes a client and its state from the maintained pool, freeing */
 /* up resources and cleaning up memory                                     */
@@ -589,37 +568,41 @@ sigchld_handler(int sig)
   return;
 }
 
-int daemonize(char* lock_file)
+/************************************************************/
+/* @brief Connects to the webserver that has the videos.    */
+/* @param state - The state of the client behind the proxy. */
+/************************************************************/
+void connect_server(fsm* state)
 {
-        /* drop to having init() as parent */
-        int i, lfp, pid = fork();
-        char str[256] = {0};
-        if (pid < 0) exit(EXIT_FAILURE);
-        if (pid > 0) exit(EXIT_SUCCESS);
+  int status, sock;
+  struct addrinfo hints;
+  struct addrinfo *servinfo; //will point to the results
 
-        setsid();
+  hints.ai_family = AF_UNSPEC;  //don't care IPv4 or IPv6
+  hints.ai_socktype = SOCK_STREAM; //TCP stream sockets
+  hints.ai_flags = AI_PASSIVE; //fill in my IP for me
 
-        for (i = getdtablesize(); i>=0; i--)
-                close(i);
+  if ((status = getaddrinfo(www_ip, "80", &hints, &servinfo)) != 0)
+    {
+      fprintf(stderr, "getaddrinfo error: %s \n", gai_strerror(status));
+      return EXIT_FAILURE;
+    }
 
-        i = open("/dev/null", O_RDWR);
-        dup(i); /* stdout */
-        dup(i); /* stderr */
-        umask(027);
+  if((sock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1)
+    {
+      fprintf(stderr, "Socket failed");
+      return EXIT_FAILURE;
+    }
 
-        lfp = open(lock_file, O_RDWR|O_CREAT, 0640);
+  if (connect (sock, servinfo->ai_addr, servinfo->ai_addrlen) == -1)
+    {
+      fprintf(stderr, "Connect");
+      return EXIT_FAILURE;
+    }
 
-        if (lfp < 0)
-                exit(EXIT_FAILURE); /* can not open */
+  /* We now have a unique connection established for this client */
+  state->servfd = sock;
+  state->servst = calloc(sizeof(serv_rep), 1);
 
-        if (lockf(lfp, F_TLOCK, 0) < 0)
-                exit(EXIT_SUCCESS); /* can not lock */
-
-        /* only first instance continues */
-        sprintf(str, "%d\n", getpid());
-        write(lfp, str, strlen(str)); /* record pid to lockfile */
-
-        // TODO: log --> "Successfully daemonized lisod process, pid %d."
-
-        return EXIT_SUCCESS;
+  freeaddrinfo(servinfo);
 }
