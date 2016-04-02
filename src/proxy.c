@@ -38,9 +38,10 @@
 #include "logger.h"
 #include "engine.h"
 #include "parse.h"
+#include "uthash.h"
 
 /** Global vars **/
-FILE* logfile;   /* Legitimate use of globals, I swear! */
+FILE* logfile;
 float alpha;
 
 short listen_port;
@@ -48,7 +49,6 @@ char* fake_ip;
 char* dns_ip;
 short dns_port;
 char* www_ip;
-
 
 /** Prototypes **/
 
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
   /* Various buffers for read/write */
   char log_buf[LOG_SIZE]            = {0};
   char hostname[LOG_SIZE]           = {0};
-  char cli_ip[INET_ADDRSTRLEN]      = {0};
+  char serv_ip[INET_ADDRSTRLEN]     = {0};
   char port[10]                     = {0};
 
   int                 listen_fd, client_fd;
@@ -175,8 +175,6 @@ int main(int argc, char* argv[])
                               &cli_size)) == -1)
       {
         close(listen_fd);
-        log_error("Error accepting connection.", logfile);
-        log_close(logfile);
         return EXIT_FAILURE;
       }
 
@@ -251,6 +249,8 @@ void add_client(int client_fd, pool *p)
 
   connect_server(state);
 
+  state->all_bitrates = NULL;
+
   memset(state->freebuf, 0, FREE_SIZE*sizeof(char*));
 
   for (i = 0; i < FD_SETSIZE; i++)  /* Find an available slot */
@@ -315,7 +315,7 @@ void check_clients(pool *p)
       state = p->states[i];
 
       /* Recv bytes from the client */
-      n = Recv(client_fd, state->context, buf, BUF_SIZE);
+      n = Recv(client_fd, NULL, buf, BUF_SIZE);
 
       /* We have received bytes, send for parsing. */
       if (n >= 1)
@@ -331,7 +331,7 @@ void check_clients(pool *p)
             if((error = parse_line(state)) != 0 && error != -1)
             {
               client_error(state, error);
-              if (Send(client_fd, state->context, state->response, state->resp_idx)
+              if (Send(client_fd, NULL, state->response, state->resp_idx)
                   != state->resp_idx)
               {
                 rm_client(client_fd, p, "Unable to write to client", i);
@@ -351,7 +351,7 @@ void check_clients(pool *p)
             if((error = parse_headers(state)) != 0)
             {
               client_error(state, error);
-              if (Send(client_fd, state->context, state->response, state->resp_idx) !=
+              if (Send(client_fd, NULL, state->response, state->resp_idx) !=
                   state->resp_idx)
               {
                 rm_client(client_fd, p, "Unable to write to client", i);
@@ -369,7 +369,7 @@ void check_clients(pool *p)
             if((error = parse_body(state)) != 0 && error != -1)
             {
               client_error(state, error);
-              if (Send(client_fd, state->context, state->response, state->resp_idx) !=
+              if (Send(client_fd, NULL, state->response, state->resp_idx) !=
                   state->resp_idx)
               {
                 rm_client(client_fd, p, "Unable to write to client", i);
@@ -389,7 +389,7 @@ void check_clients(pool *p)
             if ((error = service(state)) != 0)
             {
               client_error(state, error);
-              if (Send(client_fd, state->context, state->response, state->resp_idx) !=
+              if (Send(client_fd, NULL, state->response, state->resp_idx) !=
                   state->resp_idx)
               {
                 rm_client(client_fd, p, "Unable to write to client", i);
@@ -409,9 +409,9 @@ void check_clients(pool *p)
               }
             }
             /* Regular GET/HEAD */
-            else if (Send(client_fd, state->context, state->response, state->resp_idx)
+            else if (Send(client_fd, NULL, state->response, state->resp_idx)
                 != state->resp_idx ||
-                Send(client_fd, state->context, state->body, state->body_size)
+                Send(client_fd, NULL, state->body, state->body_size)
                 != state->body_size)
             {
               rm_client(client_fd, p, "Unable to write to client", i);
@@ -588,7 +588,8 @@ void connect_server(fsm* state)
       return EXIT_FAILURE;
     }
 
-  if((sock = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1)
+  if((sock = socket(servinfo->ai_family, servinfo->ai_socktype,
+                    servinfo->ai_protocol)) == -1)
     {
       fprintf(stderr, "Socket failed");
       return EXIT_FAILURE;
@@ -603,6 +604,7 @@ void connect_server(fsm* state)
   /* We now have a unique connection established for this client */
   state->servfd = sock;
   state->servst = calloc(sizeof(serv_rep), 1);
+  strncpy(state->serv_ip, www_ip, INET_ADDRSTRLEN);
 
   freeaddrinfo(servinfo);
 }

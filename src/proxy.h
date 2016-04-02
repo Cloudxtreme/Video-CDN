@@ -25,10 +25,19 @@ typedef struct state {
   int resp_idx; // used to mark end of response buffer
 
   int   conn;      // 1 = keep-alive; 0 = close
-  char  cli_ip[INET_ADDRSTRLEN];   // Store the IP in string form
+  char  serv_ip[INET_ADDRSTRLEN];   // Store the IP in string form
 
   int servfd;      // File descriptor of server sock for this client.
   serv_rep* servst; // Keep state of the server of this client.
+
+  /* Linkd list of bitrates */
+  struct bitrate *all_bitrates;
+
+  struct timespec start; // Time of receiving complete chunk request.
+  struct timespec end;   // Time of receiving complete chunk data.
+
+  float avg_tput;        // Average tput using EWMA.
+  float bitrate;         // Requested bitrate.
 
   char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeing
 } fsm;
@@ -48,6 +57,11 @@ typedef struct pool {
   // char data[FD_SETSIZE][BUF_SIZE];   /* Array that contains data from client */
 
 } pool;
+
+typedef struct bitrate {
+  int bitrate;
+  UT_hash_handle hh;
+};
 
 void rm_client(int client_fd, pool* p, char* logmsg, int i);
 void rm_cgi(int cgi_fd, pool* p, char* logmsg, int i);
