@@ -46,12 +46,21 @@ int log_close(FILE* file)
   return EXIT_SUCCESS;
 }
 
-int log_error(char* error, FILE* file)
+int log_state(fsm* state, FILE* file, float tput, float bitrate, char* chunkname)
 {
-  time_t now;
-  time(&now);
 
-  fprintf(file, "%s%s \n \n", ctime(&now), error);
+  struct timespec duration;
+  duration.tv_sec  = state->end.tv_sec  - state->start.tv_sec;
+  duration.tv_usec = state->end.tv_usec - state->start.tv_usec;
+
+  float avg_tput = state->avg_tput;
+  float bitrate  = state->bitrate;
+  char* server   = state->serv_ip;
+
+  fprintf(file, "[%u:] <%lld.%.6ld> \n \n",
+          time(NULL),
+          (long long)duration.tv_sec,
+          duration.tv_usec,);
 
   return EXIT_SUCCESS;
 }

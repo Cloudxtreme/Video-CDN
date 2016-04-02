@@ -423,7 +423,6 @@ void check_clients(pool *p)
               memset(log_buf,0,LOG_SIZE);
               sprintf(log_buf,"Sent %d bytes of data!",
                       state->resp_idx+(int)state->body_size);
-              log_error(log_buf,logfile);
             }
             memset(buf,0,BUF_SIZE);
           }
@@ -473,7 +472,6 @@ void rm_client(int client_fd, pool* p, char* logmsg, int i)
   close_socket(client_fd);
   FD_CLR(client_fd, &p->masterfds);
   p->clientfd[i] = -1;
-  log_error(logmsg, logfile);
 }
 
 
@@ -545,7 +543,6 @@ void cleanup(int sig)
   int appease_compiler = sig;
   appease_compiler += 2;
 
-  log_error("Received SIGINT. Goodbye, cruel world.", logfile);
   log_close(logfile);
 
   fprintf(stderr, "\nThank you for flying Liso. See ya!\n");
