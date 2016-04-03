@@ -37,6 +37,7 @@ typedef struct client_req{
 	char  version[BUF_SHORT];
 	char  *response;
 	char  file[BUF_SHORT];
+	char  path[BUF_SHORT];
 } client_req;
 
 typedef struct serv_rep {

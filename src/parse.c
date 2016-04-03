@@ -59,11 +59,6 @@ void parse_server_message(char *msg){
 	return;
 }
 
-// Generate the client's message. Should be easy with the struct.
-void gen_client_message(client_req *req){
-	return;
-}
-
 /* Copies some relevant information into my superior struct. */
 void copy_info(client_req *my_req, struct state *client){
   memcpy(my_req->req_type, client->method, strlen(client->method));
@@ -73,14 +68,22 @@ void copy_info(client_req *my_req, struct state *client){
 }
 
 void parse_URI(client_req *my_req){
+  int  last_pos = 0;
   char *last_slash = strstr(my_req->URI, "/");
   char temp[BUF_SHORT];
   memset(temp, 0, BUF_SHORT);
+
   while(!last_slash){
+    memset(temp, 0, BUF_SHORT);
     memcpy(temp, last_slash, strlen(last_slash));
-    last_slash = strstr(last_slash, "/");
+    last_slash = strstr(last_slash + 1, "/");
+    last_pos = (last_slash - (my_req->URI)) + 1;
   }
+
   memcpy(my_req->file, temp + 1, strlen(temp) - 1);
+  memset(temp, 0, BUF_SHORT);
+  getSubstring(temp, my_req->URI, 0, last_pos);
+  memcpy(my_req->path, temp, strlen(temp));
 }
 
 //Assumes we're dealing with video chunk
@@ -135,7 +138,14 @@ void parse_file(client_req *my_req){
 	3. Generate the server response.
 */
 void parse_client_message(struct state *client){
+  char response[BUF_SHORT];
+  char response2[BUF_SHORT];
+  char *ext_loc;
+  int  ext_pos;
   client_req *my_req = calloc(1, client_req *);
+
+  memset(response, 0, BUF_SHORT);
+  memset(response2, 0, BUF_SHORT);
   copy_info(my_req, client);
   char *fragment = strstr(client->uri, ".f4f");
   char *manifest = strstr(client->uri, ".f4m");
@@ -151,6 +161,26 @@ void parse_client_message(struct state *client){
     my_req->content_type = 0;
     my_req->segno = -1;
     my_req->fragno = -1;
+  } else {
+    //Impossible
   }
-  //Generate response here
+
+  if(manifest){
+    ext_loc = strstr(client_req->file, ".");
+    //ASSERT(ext_loc != NULL)
+    ext_pos = ext_loc - (client_req->file);
+    getSubstring(response2, client_req->file, 0, ext_pos);
+    sprintf(response2, "%s%s_nolist.f4m", client_req->path, response2);
+    sprintf(response, "GET %s HTTP/1.1\r\n", client_req->URI);
+    sprintf(response, "%sGET %s HTTP/1.1\r\n", response, response2);
+  } else if(fragment){
+    sprintf(response, "GET %s%dSeg%d-Frag%d.f4f HTTP/1.1\r\n",client_req->path,
+                   client_req->bitrate, client_req->segno, client_req->fragno);
+  } else if(!manifest && !fragment){
+    sprintf(response, "GET %s HTTP/1.1\r\n", client_req->URI);
+  } else {
+    //Impossible
+  }
+
+  //Return response(s)
 }
