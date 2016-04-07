@@ -57,11 +57,15 @@ int log_state(fsm* state, FILE* file, double tput, int bitrate, char* chunkname)
   float bitrate  = state->bitrate;
   char* server   = state->serv_ip;
 
-  fprintf(file, "[%u:] <duration:%lld.%.6ld> <tput:> \n \n",
+  fprintf(file, "[%u:] <duration:%lld.%.6ld> <tput:%f> <avg-tput:%f> <bitrate:%d> <ip:%s> <chunk:%s> \n \n",
           time(NULL),
           (long long)duration.tv_sec,
           duration.tv_usec,
-          );
+          tput,
+          state->avg_tput,
+          bitrate,
+          serv_ip,
+          chunkname);
 
   return EXIT_SUCCESS;
 }

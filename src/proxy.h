@@ -22,7 +22,6 @@ typedef struct serv_rep {
   char* body;  // alloc memory for body to recv
   ssize_t body_size; // size of body to recv
 
-  s
   int end_idx; // used to mark end of data in buffer
   int resp_idx; // used to mark end of response buffer
 
@@ -58,6 +57,7 @@ typedef struct state {
 
   double avg_tput;        // Average tput using EWMA.
   unsigned long long curBitrate;
+  char lastchunk[300];
 
   char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeing
 } fsm;
