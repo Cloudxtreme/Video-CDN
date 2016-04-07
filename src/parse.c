@@ -42,31 +42,36 @@ void getSubstring(char *dest, char *src, int start, int end){
 
 //Should calculate the bitrate by first finding the throughput and then
 //comparing the result to the approprtiate bitrate in the global array.
-int calculate_bitrate(fsm* state){
+void calculate_bitrate(fsm* state){
 
   int    size            = state->body_size;
   struct timespec *start = state->start;
   struct timespec *end   = state->end;
-  int    bitrate;
+  unsigned long long int    bitrate;
+  unsigned long long int    current_best;
 
   unsigned long long int start_time =
     1000 * (start->tv_sec) + (start->tv_nsec) / 1000000;
   unsigned long long int end_time =
     1000 * (end.tv->sec) + (end->tv_nsec) / 1000000;
   unsigned int long long elapsed = end_time - start_time;
-  double throughput = size / elapsed;
+  double throughput = (size * 8) / elapsed;
 
   struct bitrate* current = NULL;
   struct bitrate* tmp     = NULL;
+  state->avg_tput = (alpha * through) + (1 - alpha)*(state->avg_tput);
+
   HASH_ITER(hh, state->all_bitrates, current, tmp) {
     /* This code loops through all struct bitrates */
     bitrate = current->bitrate;
-
-    /* Do some stuff */
-
-    /* Macro auto expands to go to the next node */
+    if((bitrate * 1500000) < state->avg_tput){
+      current_best = bitrate;
+    } else {
+      break;
+    }
   }
-  return 0;
+
+  state->current_best = current_best;
 }
 
 /* Copies some relevant information into my superior struct. */
@@ -183,11 +188,14 @@ void parse_client_message(struct state *client){
     sprintf(response2, "%s%s_nolist.f4m", client_req->path, response2);
     sprintf(response, "GET %s HTTP/1.1\r\n", client_req->URI);
     sprintf(response, "%sGET %s HTTP/1.1\r\n", response, response2);
+    state->expecting = REGF4M;
   } else if(fragment){
     sprintf(response, "GET %s%dSeg%d-Frag%d.f4f HTTP/1.1\r\n",client_req->path,
                    client_req->bitrate, client_req->segno, client_req->fragno);
+    state->expecting = VIDEO;
   } else if(!manifest && !fragment){
     sprintf(response, "GET %s HTTP/1.1\r\n", client_req->URI);
+    state->expecting = VIDEO;
   } else {
     //Impossible
   }
