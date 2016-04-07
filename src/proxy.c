@@ -400,15 +400,9 @@ void check_clients(pool *p)
               break;
             }
 
-            /* if POST/GET CGI */
-            if(state->pipefds > 0)
-            {
-              if(add_cgi(client_fd, state, p))
-              {
-                rm_client(client_fd, p, "Too many processes", i);
-                break;
-              }
-            }
+            /* Clock the start time */
+            clock_gettime(CLOCK_MONOTONIC, state->start);
+
             /* Regular GET/HEAD */
             else if (Send(state->servfd, NULL, state->response, state->resp_idx)
                      != state->resp_idx ||
@@ -452,6 +446,8 @@ void check_clients(pool *p)
         /* Receive bytes from the webserver */
         n = Recv(state->servfd, NULL, buf, BUF_SIZE);
 
+        clock_gettime(CLOCK_MONOTONIC, state->end);
+
         if (n >= 1)
           {
             store_request(buf, n, state->servst);
@@ -460,7 +456,6 @@ void check_clients(pool *p)
 
             /* perform the pipelining loop */
             do {
-
               /* Parse the status line */
               if (servst->status == NULL)
                 {
@@ -504,7 +499,7 @@ void check_clients(pool *p)
               if(state->expecting == REGF4M)
                 {
                   parse_f4m(state);
-                  servst->expecting = VIDEO;
+                  servst->expecting = NOLIST;
                 }
               else // VIDEO or NOLIST
                 {
@@ -513,6 +508,7 @@ void check_clients(pool *p)
                 }
 
               /* Calculate new throughput here */
+              calculate_bitrate(state);
             }
           }
       } // End of webserver read check

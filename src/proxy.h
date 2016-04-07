@@ -56,7 +56,8 @@ typedef struct state {
   struct timespec start; // Time of receiving complete chunk request.
   struct timespec end;   // Time of receiving complete chunk data.
 
-  float avg_tput;        // Average tput using EWMA.
+  double avg_tput;        // Average tput using EWMA.
+  unsigned long long curBitrate;
 
   char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeing
 } fsm;

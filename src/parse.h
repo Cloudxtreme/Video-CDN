@@ -48,4 +48,6 @@ int  calculate_bitrate(struct timespec *start, struct timespec *end, int size);
 void parse_server_message(char *msg);
 void parse_client_message(char *msg, int bitrate);
 
+extern float alpha;
+
 #endif
