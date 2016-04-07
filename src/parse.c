@@ -43,17 +43,15 @@ void getSubstring(char *dest, char *src, int start, int end){
 //Should calculate the bitrate by first finding the throughput and then
 //comparing the result to the approprtiate bitrate in the global array.
 int calculate_bitrate(struct timespec *start, struct timespec *end, int size){
-	return 0;
-}
+  unsigned long long int start_time =
+    1000 * (start->tv_sec) + (start->tv_nsec) / 1000000;
+  unsigned long long int end_time =
+    1000 * (end.tv->sec) + (end->tv_nsec) / 1000000;
+  unsigned int long long elapsed = end_time - start_time;
+  double throughput = size / elapsed;
 
-/*
-	1. Break the message up into headers and body.
-	2. Get the content length header.
-	3. If not, just calculate that body length manually.
-	4. Calculate the bitrate, set it and return.
-*/
-void parse_server_message(char *msg){
-	return;
+  //Finish this dammit
+  return 0;
 }
 
 /* Copies some relevant information into my superior struct. */
@@ -179,5 +177,5 @@ void parse_client_message(struct state *client){
     //Impossible
   }
 
-  //Return response(s)
+  return response;
 }
