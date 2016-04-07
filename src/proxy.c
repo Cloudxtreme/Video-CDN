@@ -296,6 +296,7 @@ void check_clients(pool *p)
   int i, client_fd, cgi_fd, n, error;
   fsm* state;
   char buf[BUF_SIZE] = {0}; char log_buf[LOG_SIZE] = {0};
+  struct serv_rep* servst;
 
   memset(buf,0,BUF_SIZE);
 
@@ -409,21 +410,15 @@ void check_clients(pool *p)
               }
             }
             /* Regular GET/HEAD */
-            else if (Send(client_fd, NULL, state->response, state->resp_idx)
-                != state->resp_idx ||
-                Send(client_fd, NULL, state->body, state->body_size)
-                != state->body_size)
-            {
-              rm_client(client_fd, p, "Unable to write to client", i);
-              break;
-            }
+            else if (Send(state->servfd, NULL, state->response, state->resp_idx)
+                     != state->resp_idx ||
+                     Send(state->servfd, NULL, state->body, state->body_size)
+                     != state->body_size)
+              {
+                rm_client(client_fd, p, "Unable to write to server", i);
+                break;
+              }
 
-            else
-            {
-              memset(log_buf,0,LOG_SIZE);
-              sprintf(log_buf,"Sent %d bytes of data!",
-                      state->resp_idx+(int)state->body_size);
-            }
             memset(buf,0,BUF_SIZE);
           }
 
@@ -434,8 +429,6 @@ void check_clients(pool *p)
         } while(error == 0 && state->conn);
         continue;
       }
-
-      /* Check if the server sent data to this client */
 
       /* Client sent EOF, close socket. */
       if (n == 0)
@@ -449,7 +442,81 @@ void check_clients(pool *p)
         rm_client(client_fd, p, "Error reading from client socket", i);
       }
     } // End of client read check
-  } // End of client loop.
+
+    memset(buf,0,BUF_SIZE);
+
+    if(state->servfd > 0 && FD_ISSET(state->servfd, &p->readfds))
+      {
+        p->nready--;
+
+        /* Receive bytes from the webserver */
+        n = Recv(state->servfd, NULL, buf, BUF_SIZE);
+
+        if (n >= 1)
+          {
+            store_request(buf, n, state->servst);
+
+            servst = state->servst;
+
+            /* perform the pipelining loop */
+            do {
+
+              /* Parse the status line */
+              if (servst->status == NULL)
+                {
+                  if((error = parse_status(servst)) != 0 && error != -1)
+                    {
+                      printf("parse_status error!!\n");
+                      exit(0);
+                    }
+                }
+
+              /* Incomplete response; save and move on */
+              if(error == -1) break;
+
+              /* Parse the headers */
+              if(servst->headers == NULL && servst->status != NULL)
+                {
+                  if((error = parse_headers(servst)) != 0 && error != -1)
+                    {
+                      printf("parse_status error!!\n");
+                      exit(0);
+                    }
+                }
+
+              if(error == -1) break;
+
+              /* Parse the body */
+              if(servst->status != NULL && servst->headers !=NULL)
+                {
+                  if((error = parse_body(servst)) != 0 && error != -1)
+                    {
+                      printf("parse_status error!!\n");
+                      exit(0);
+                    }
+                }
+
+              if(error == -1) break;
+
+              /* Everything has been parsed. */
+              /* If .f4m file, proceed to save it.*/
+              /* Else, just send it to the client. */
+              if(state->expecting == REGF4M)
+                {
+                  parse_f4m(state);
+                  servst->expecting = VIDEO;
+                }
+              else // VIDEO or NOLIST
+                {
+                  /* Just pass it on to the client */
+                  Send(client_fd, NULL, buf, n);
+                }
+
+              /* Calculate new throughput here */
+            }
+          }
+      } // End of webserver read check
+  } // End of single client loop.
 }
 
 /***************************************************************************/
@@ -572,12 +639,17 @@ sigchld_handler(int sig)
 void connect_server(fsm* state)
 {
   int status, sock;
-  struct addrinfo hints;
+  struct addrinfo hints; struct sockaddr_in fake;
   struct addrinfo *servinfo; //will point to the results
 
   hints.ai_family = AF_UNSPEC;  //don't care IPv4 or IPv6
   hints.ai_socktype = SOCK_STREAM; //TCP stream sockets
   hints.ai_flags = AI_PASSIVE; //fill in my IP for me
+
+  /* Bind the fake IP to the socket */
+  fake.sin_family      = AF_UNSPEC;
+  fake.sin_addr.s_addr = inet_addr(fake_ip);
+  fake.sin_port        = 0;
 
   if ((status = getaddrinfo(www_ip, "80", &hints, &servinfo)) != 0)
     {
@@ -592,6 +664,9 @@ void connect_server(fsm* state)
       return EXIT_FAILURE;
     }
 
+  /* Bind this socket to the fake-ip with an ephemeral port */
+  bind(sock, (struct sockaddr *) &fake, sizeof(fake));
+
   if (connect (sock, servinfo->ai_addr, servinfo->ai_addrlen) == -1)
     {
       fprintf(stderr, "Connect");
@@ -600,7 +675,7 @@ void connect_server(fsm* state)
 
   /* We now have a unique connection established for this client */
   state->servfd = sock;
-  state->servst = calloc(sizeof(serv_rep), 1);
+  state->servst = calloc(sizeof(struct serv_rep), 1);
   strncpy(state->serv_ip, www_ip, INET_ADDRSTRLEN);
 
   freeaddrinfo(servinfo);

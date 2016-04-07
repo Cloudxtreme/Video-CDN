@@ -5,22 +5,18 @@
 /* @param state - state of the client to store bitrates. */
 /* @param f4m   - The .f4m file.                         */
 /*********************************************************/
-void parse_f4m(fsm* state, FILE* f4m)
+void parse_f4m(fsm* state)
 {
-  char *buf = NULL, *needle1 = NULL, *needle2 = NULL;
+  struct serv_rep* servst = state->servst;
+  char *buf = servst->body, *needle1 = NULL, *needle2 = NULL;
   char[200] number = {0};
   size_t n  = 0, len = 0;
   int bitrate_f4m = 0;
   struct bitrate* rate = NULL;
 
   /* Getline allocates a null-terminated buffer for you internally. */
-  while((getline(&buf, &n, f4m) != -1))
+  while((needle1 = strstr(buf, "bitrate=")) != NULL)
     {
-      needle1 = strstr(buf, "bitrate=");
-
-      if(!needle1)
-        continue;
-
       needle2 = strstr(needle1 + strlen("bitrate=") + 1, "\"");
       len     = needle2 - (needle1 + strlen("bitrate=") + 1);
 
@@ -32,9 +28,10 @@ void parse_f4m(fsm* state, FILE* f4m)
       rate          = calloc(sizeof(struct bitrate), 1);
       rate->bitrate = bitrate_f4m;
       HASH_ADD_INT(state->all_bitrates, bitrate, rate);
+
+      buf = needle2;
     }
 
-  free(buf);
 }
 
 /* Returns a substring of the given string from [start,end). */

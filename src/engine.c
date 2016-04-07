@@ -200,7 +200,8 @@ int parse_body(fsm* state)
   if(body + (int) state->body_size > state->request + state->end_idx)
     return -1;
 
-  state->body = strndup(body, state->body_size);
+  state->body = strndup(body, state->body_size + 1);
+  state->body[state->body_size] = '\0';
   addtofree(state->freebuf, state->body, FREE_SIZE);
 
   return 0;
@@ -232,10 +233,9 @@ int store_request(char* buf, int size, fsm* state)
 /*********************************************************************/
 int service(fsm* state)
 {
-
   if(!strncmp(state->method,"GET",strlen("GET")))
     {
-      parse_client_message();
+      parse_client_message(state);
     }
   else // Non 'GET' request, just pass it on.
     {
@@ -244,17 +244,6 @@ int service(fsm* state)
 
   return 0;
 }
-
-/*****************************************************************************/
-/* @brief  populates the variable type with appropriate filetype information */
-/*                                                                           */
-/* @param file  The file to check for                                        */
-/* @param len   length of 'type'                                             */
-/* @param type  buffer to populate data                                      */
-/*                                                                           */
-/* @retval 0 if unrecognizable                                               */
-/* @retval 1 if successful                                                   */
-/*****************************************************************************/
 
 int validsize(char* body_size)
 {
