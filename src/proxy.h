@@ -53,8 +53,8 @@ typedef struct state {
   /* Linkd list of bitrates */
   struct bitrate *all_bitrates;
 
-  struct timeval start; // Time of receiving complete chunk request.
-  struct timeval end;   // Time of receiving complete chunk data.
+  struct timespec start; // Time of receiving complete chunk request.
+  struct timespec end;   // Time of receiving complete chunk data.
 
   float avg_tput;        // Average tput using EWMA.
 

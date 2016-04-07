@@ -42,7 +42,13 @@ void getSubstring(char *dest, char *src, int start, int end){
 
 //Should calculate the bitrate by first finding the throughput and then
 //comparing the result to the approprtiate bitrate in the global array.
-int calculate_bitrate(struct timespec *start, struct timespec *end, int size){
+int calculate_bitrate(fsm* state){
+
+  int    size            = state->body_size;
+  struct timespec *start = state->start;
+  struct timespec *end   = state->end;
+  int    bitrate;
+
   unsigned long long int start_time =
     1000 * (start->tv_sec) + (start->tv_nsec) / 1000000;
   unsigned long long int end_time =
@@ -50,7 +56,16 @@ int calculate_bitrate(struct timespec *start, struct timespec *end, int size){
   unsigned int long long elapsed = end_time - start_time;
   double throughput = size / elapsed;
 
-  //Finish this dammit
+  struct bitrate* current = NULL;
+  struct bitrate* tmp     = NULL;
+  HASH_ITER(hh, state->all_bitrates, current, tmp) {
+    /* This code loops through all struct bitrates */
+    bitrate = current->bitrate;
+
+    /* Do some stuff */
+
+    /* Macro auto expands to go to the next node */
+  }
   return 0;
 }
 
