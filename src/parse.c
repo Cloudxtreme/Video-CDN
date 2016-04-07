@@ -193,12 +193,13 @@ void parse_client_message(struct state *client){
     sprintf(response, "GET %s%dSeg%d-Frag%d.f4f HTTP/1.1\r\n",client_req->path,
                    client_req->bitrate, client_req->segno, client_req->fragno);
     state->expecting = VIDEO;
+    state->lastchunk = my_req->file;
   } else if(!manifest && !fragment){
     sprintf(response, "GET %s HTTP/1.1\r\n", client_req->URI);
     state->expecting = VIDEO;
   } else {
     //Impossible
   }
-
+  free(my_req);
   return response;
 }
