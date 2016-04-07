@@ -239,7 +239,7 @@ int service(fsm* state)
     }
   else // Non 'GET' request, just pass it on.
     {
-
+      // myah.
     }
 
   return 0;

@@ -46,7 +46,7 @@ int log_close(FILE* file)
   return EXIT_SUCCESS;
 }
 
-int log_state(fsm* state, FILE* file, float tput, float bitrate, char* chunkname)
+int log_state(fsm* state, FILE* file, double tput, int bitrate, char* chunkname)
 {
 
   struct timespec duration;
@@ -57,10 +57,11 @@ int log_state(fsm* state, FILE* file, float tput, float bitrate, char* chunkname
   float bitrate  = state->bitrate;
   char* server   = state->serv_ip;
 
-  fprintf(file, "[%u:] <%lld.%.6ld> \n \n",
+  fprintf(file, "[%u:] <duration:%lld.%.6ld> <tput:> \n \n",
           time(NULL),
           (long long)duration.tv_sec,
-          duration.tv_usec,);
+          duration.tv_usec,
+          );
 
   return EXIT_SUCCESS;
 }
