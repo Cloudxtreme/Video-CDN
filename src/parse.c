@@ -2,7 +2,7 @@
 #include "logger.h"
 
 extern FILE* logfile;
-
+extern struct bitrate *all_bitrates;
 /*********************************************************/
 /* @brief Parse a .f4m file to obtain bitrates.          */
 /* @param state - state of the client to store bitrates. */
@@ -29,7 +29,7 @@ void parse_f4m(fsm* state)
 
       rate          = calloc(sizeof(struct bitrate), 1);
       rate->bitrate = bitrate_f4m;
-      HASH_ADD_INT(state->all_bitrates, bitrate, rate);
+      HASH_ADD_INT(all_bitrates, bitrate, rate);
 
       buf = needle2;
     }
@@ -64,7 +64,7 @@ void calculate_bitrate(fsm* state){
   struct bitrate* tmp     = NULL;
   state->avg_tput = (alpha * throughput) + (1 - alpha)*(state->avg_tput);
 
-  HASH_ITER(hh, state->all_bitrates, current, tmp) {
+  HASH_ITER(hh, all_bitrates, current, tmp) {
     /* This code loops through all struct bitrates */
     /* All bitrates are in units of Kbps */
     bitrate = current->bitrate;
@@ -108,7 +108,7 @@ void parse_URI(client_req *my_req){
 
     last_slash = strstr(last_slash + 1, "/");
   }
-  
+
   bzero(my_req->file, 0);
   memcpy(my_req->file, temp + 1, strlen(temp) - 1);
   memset(temp, 0, BUF_SHORT);

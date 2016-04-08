@@ -49,9 +49,6 @@ typedef struct state {
   int servfd;      // File descriptor of server sock for this client.
   struct serv_rep* servst; // Keep state of the server of this client.
 
-  /* Linkd list of bitrates */
-  struct bitrate *all_bitrates;
-
   struct timespec start; // Time of receiving complete chunk request.
   struct timespec end;   // Time of receiving complete chunk data.
 

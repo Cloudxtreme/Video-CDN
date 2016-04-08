@@ -51,6 +51,9 @@ char* dns_ip;
 short dns_port;
 char* www_ip;
 
+/* Linkd list of bitrates */
+struct bitrate *all_bitrates = NULL;
+
 /** Prototypes **/
 
 int  close_socket(int sock);
@@ -242,8 +245,6 @@ void add_client(int client_fd, pool *p)
   bzero(state->serv_ip, INET_ADDRSTRLEN);
 
   connect_server(state);
-
-  state->all_bitrates = NULL;
 
   memset(state->freebuf, 0, FREE_SIZE*sizeof(char*));
 
