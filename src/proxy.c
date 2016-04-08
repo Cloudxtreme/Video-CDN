@@ -53,6 +53,7 @@ char* www_ip;
 
 /* Linkd list of bitrates */
 struct bitrate *all_bitrates = NULL;
+unsigned long long int global_best;
 
 /** Prototypes **/
 
@@ -449,7 +450,6 @@ void check_clients(pool *p)
           n = Recv(state->servfd, buf, BUF_SIZE);
 
           clock_gettime(CLOCK_MONOTONIC, &state->end);
-	  printf("Received from webserver \n");
 
           if (n >= 1)
             {

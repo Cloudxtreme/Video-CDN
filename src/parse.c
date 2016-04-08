@@ -3,6 +3,8 @@
 
 extern FILE* logfile;
 extern struct bitrate *all_bitrates;
+extern unsigned long long int global_best;
+
 /*********************************************************/
 /* @brief Parse a .f4m file to obtain bitrates.          */
 /* @param state - state of the client to store bitrates. */
@@ -51,6 +53,7 @@ void calculate_bitrate(fsm* state){
   struct timespec *end   = &(state->end);
   unsigned long long int    bitrate;
   unsigned long long int    current_best = 0;
+  unsigned long long int    smallest = 1000000000;
 
   unsigned long long int start_time =
     1000000000 * (start->tv_sec) + (start->tv_nsec);
@@ -68,17 +71,25 @@ void calculate_bitrate(fsm* state){
     /* This code loops through all struct bitrates */
     /* All bitrates are in units of Kbps */
     bitrate = current->bitrate;
-    if((bitrate * 1.5) < state->avg_tput){
+    if((bitrate * 1.5) < state->avg_tput)
       {
         if(bitrate > current_best)
           current_best = bitrate;
       }
-    }
+ 
+    if(bitrate < smallest)
+      smallest = bitrate;
   }
 
+  if(current_best == 0)
+    state->current_best = global_best;
+  else
     state->current_best = current_best;
 
+  global_best = state->current_best;
+  
   log_state(state, logfile, throughput, state->lastchunk);
+  printf("Current best: %lld \n", state->current_best);
 }
 
 /* Copies some relevant information into my superior struct. */
@@ -207,6 +218,13 @@ void parse_client_message(struct state *client){
     client->servst->expecting = REGF4M;
 
   } else if(fragment){
+
+    if(my_req->bitrate == 0)
+      {
+	my_req->bitrate = global_best;
+	client->current_best = global_best;
+      }
+
     sprintf(response, "GET %s%dSeg%d-Frag%d HTTP/1.1\r\n%s", my_req->path,
             my_req->bitrate, my_req->segno, my_req->fragno, client->header);
     client->servst->expecting = VIDEO;
