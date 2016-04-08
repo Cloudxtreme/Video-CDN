@@ -1,4 +1,7 @@
 #include "parse.h"
+#include "logger.h"
+
+extern FILE* logfile;
 
 /*********************************************************/
 /* @brief Parse a .f4m file to obtain bitrates.          */
@@ -74,6 +77,8 @@ void calculate_bitrate(fsm* state){
   }
 
   state->current_best = current_best;
+
+  log_state(state, logfile, throughput, state->lastchunk);
 }
 
 /* Copies some relevant information into my superior struct. */
