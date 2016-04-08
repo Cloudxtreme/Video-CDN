@@ -81,6 +81,7 @@ void copy_info(client_req *my_req, struct state *client){
   memcpy(my_req->req_type, client->method, strlen(client->method));
   memcpy(my_req->URI, client->uri, strlen(client->uri));
   memcpy(my_req->version, client->version, strlen(client->version));
+  memcpy(my_req->file, client->uri, strlen(client->uri));
   my_req->bitrate = client->current_best; //Change later
 }
 
@@ -164,6 +165,7 @@ void parse_client_message(struct state *client){
   copy_info(my_req, client);
   char *fragment = strstr(client->uri, ".f4f");
   char *manifest = strstr(client->uri, ".f4m");
+
   if(manifest){
     my_req->content_type = 1;
     my_req->segno = -1;
