@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
     }
 
   /* These will help a client connect to the proxy */
-  serv_addr.sin_family        = AF_INET;
+  serv_addr.sin_family        = AF_UNSPEC;
   serv_addr.sin_port          = htons(listen_port);
   serv_addr.sin_addr.s_addr   = INADDR_ANY;
 
