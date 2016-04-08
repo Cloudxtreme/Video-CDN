@@ -657,7 +657,7 @@ int connect_server(fsm* state)
   fake.sin_addr.s_addr = inet_addr(fake_ip);
   fake.sin_port        = 0;
 
-  if ((status = getaddrinfo(www_ip, "80", &hints, &servinfo)) != 0)
+  if ((status = getaddrinfo(www_ip, "8080", &hints, &servinfo)) != 0)
     {
       fprintf(stderr, "getaddrinfo error: %s \n", gai_strerror(status));
       return EXIT_FAILURE;
