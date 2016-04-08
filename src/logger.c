@@ -35,8 +35,6 @@ FILE* log_open(char* filename)
 
 int log_close(FILE* file)
 {
-  fprintf(file, "Closing log...\n");
-
   if(fclose(file) != 0)
   {
     fprintf(stderr,"Error closing log file. \n");
@@ -57,7 +55,7 @@ int log_state(fsm* state, FILE* file, double tput, char* chunkname)
   unsigned long long bitrate = state->current_best;
   char*  server              = state->serv_ip;
 
-  fprintf(file, "[%ld:] <duration:%lld.%.9ld> <tput:%f> <avg-tput:%f> <bitrate:%llu> <ip:%s> <chunk:%s> \n \n",
+  fprintf(file, "%ld %lld.%.9ld %f %f %llu %s %s \n \n",
           time(NULL),
           (long long)duration.tv_sec,
           duration.tv_nsec,
