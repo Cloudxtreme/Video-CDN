@@ -468,7 +468,6 @@ void check_clients(pool *p)
 
                     /* Calculate new throughput here */
                     calculate_bitrate(state);
-
                     break;
                   }
 

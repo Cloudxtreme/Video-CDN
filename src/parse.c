@@ -89,7 +89,7 @@ void calculate_bitrate(fsm* state){
   global_best = state->current_best;
   
   log_state(state, logfile, throughput, state->lastchunk);
-  printf("Current best: %lld \n", state->current_best);
+  //  printf("Current best: %lld \n", state->current_best);
 }
 
 /* Copies some relevant information into my superior struct. */
@@ -182,7 +182,7 @@ void parse_client_message(struct state *client){
   int  ext_pos;
   client_req *my_req = calloc(1, sizeof(client_req));
 
-  printf("Received from client : %s \n", client->request);
+  //  printf("Received from client : %s \n", client->request);
 
   memset(client->response, 0, BUF_SIZE);
   memset(response, 0, BUF_SHORT);
@@ -244,5 +244,5 @@ void parse_client_message(struct state *client){
   free(my_req);
   memcpy(client->response, response, strlen(response));
   client->resp_idx = strlen(response);
-  printf("Sending to server: %s \n", response);
+  //printf("Sending to server: %s \n", response);
 }
