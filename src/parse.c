@@ -203,7 +203,9 @@ void parse_client_message(struct state *client){
     client->servst->expecting = VIDEO;
 
     bzero(client->lastchunk, 200);
-    memcpy(client->lastchunk, my_req->file, 200);
+    snprintf(client->lastchunk, 200, "%s%dSeg%d-Frag%d.f4f",
+             my_req->path,
+             my_req->bitrate, my_req->segno, my_req->fragno);
   }
   else if(!manifest && !fragment){
     sprintf(response, "GET %s HTTP/1.1\r\n%s", my_req->URI, client->header);
