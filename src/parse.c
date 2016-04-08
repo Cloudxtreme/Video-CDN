@@ -50,15 +50,15 @@ void calculate_bitrate(fsm* state){
   struct timespec *start = &(state->start);
   struct timespec *end   = &(state->end);
   unsigned long long int    bitrate;
-  unsigned long long int    current_best;
+  unsigned long long int    current_best = 0;
 
   unsigned long long int start_time =
     1000000000 * (start->tv_sec) + (start->tv_nsec);
   unsigned long long int end_time =
     1000000000 * (end->tv_sec) + (end->tv_nsec);
   unsigned int long long elapsed = end_time - start_time;
-  double throughput = (size * 8) / elapsed; /* bits per nanoseconds */
-  throughput = throughput * 1000000; /* Kbps */
+
+  double throughput = (size * 8 * 1000000) / elapsed; /* kilobits per second */
 
   struct bitrate* current = NULL;
   struct bitrate* tmp     = NULL;
@@ -68,7 +68,7 @@ void calculate_bitrate(fsm* state){
     /* This code loops through all struct bitrates */
     /* All bitrates are in units of Kbps */
     bitrate = current->bitrate;
-    if((bitrate * 1500000) < state->avg_tput){
+    if((bitrate * 1.5) < state->avg_tput){
       {
         if(bitrate > current_best)
           current_best = bitrate;
@@ -76,7 +76,7 @@ void calculate_bitrate(fsm* state){
     }
   }
 
-  state->current_best = current_best;
+    state->current_best = current_best;
 
   log_state(state, logfile, throughput, state->lastchunk);
 }
@@ -99,10 +99,17 @@ void parse_URI(client_req *my_req){
   while(last_slash){
     memset(temp, 0, BUF_SHORT);
     memcpy(temp, last_slash, strlen(last_slash));
-    last_slash = strstr(last_slash + 1, "/");
-    last_pos = (last_slash - (my_req->URI)) + 1;
-  }
 
+    if((strstr(last_slash + 1, "/")) == NULL)
+      {
+	last_pos = (last_slash - (my_req->URI)) + 1;
+	break;
+      }
+
+    last_slash = strstr(last_slash + 1, "/");
+  }
+  
+  bzero(my_req->file, 0);
   memcpy(my_req->file, temp + 1, strlen(temp) - 1);
   memset(temp, 0, BUF_SHORT);
   getSubstring(temp, my_req->URI, 0, last_pos);
@@ -164,6 +171,8 @@ void parse_client_message(struct state *client){
   int  ext_pos;
   client_req *my_req = calloc(1, sizeof(client_req));
 
+  printf("Received from client : %s \n", client->request);
+
   memset(client->response, 0, BUF_SIZE);
   memset(response, 0, BUF_SHORT);
   memset(response2, 0, BUF_SHORT);
@@ -217,4 +226,5 @@ void parse_client_message(struct state *client){
   free(my_req);
   memcpy(client->response, response, strlen(response));
   client->resp_idx = strlen(response);
+  printf("Sending to server: %s \n", response);
 }

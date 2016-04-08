@@ -448,6 +448,7 @@ void check_clients(pool *p)
           n = Recv(state->servfd, buf, BUF_SIZE);
 
           clock_gettime(CLOCK_MONOTONIC, &state->end);
+	  printf("Received from webserver \n");
 
           if (n >= 1)
             {
