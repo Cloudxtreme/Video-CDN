@@ -16,6 +16,7 @@
 /* Part of the code is based on the select-based echo server found in
    CSAPP */
 
+#include <time.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>

@@ -2,7 +2,6 @@
 #define LISOD_H
 
 #include <sys/select.h>
-#include <openssl/ssl.h>
 #include <netinet/in.h>
 #include "uthash.h"
 
