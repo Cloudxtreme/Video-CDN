@@ -17,6 +17,7 @@
 #include <errno.h>
 
 #include "engine.h"
+#include "parse.h"
 
 #define FREE_SIZE 40
 
@@ -298,7 +299,7 @@ int resetbuf(fsm* state)
     next = CRLF + 4 + state->body_size;
 
   /* Copy remaining requests to start of buf */
-  memcpy(buf,next,BUF_SIZE-length);
+  memmove(buf,next,BUF_SIZE-length);
 
   /* Zero out the rest of the buf */
   memset(buf+(BUF_SIZE-length),0,length);
@@ -360,36 +361,24 @@ char* search_hdr(fsm* state, char* hdr, int n)
 /* @brief wrapper for reading HTTP / HTTPS sockets       */
 /*                                                       */
 /* @param fd             File descriptor for HTTP socket */
-/* @param client_context SSL context                     */
 /* @param buf            buffer for reading into         */
 /* @param num            size of buffer                  */
 /*********************************************************/
-int Recv(int fd, SSL* client_context, char* buf, int num)
+int Recv(int fd, char* buf, int num)
 {
-  if (client_context == NULL)
-    {
-      return recv(fd, buf, num, 0);
-    }
-
-  return SSL_read(client_context, buf, num);
+  return recv(fd, buf, num, 0);
 }
 
 /*********************************************************/
 /*@brief wrapper for writing to HTTP / HTTPS sockets     */
 /*                                                       */
 /* @param fd             File descriptor for HTTP socket */
-/* @param client_context SSL context                     */
 /* @param buf            buffer for reading into         */
 /* @param num            size of buffer                  */
 /*********************************************************/
-int Send(int fd, SSL* client_context, char* buf, int num)
+int Send(int fd, char* buf, int num)
 {
-  if(client_context == NULL)
-    {
-      return send(fd, buf, num, 0);
-    }
-
-  return SSL_write(client_context, buf, num);
+  return send(fd, buf, num, 0);
 }
 
 void addtofree(char** freebuf, char* ptr, int bufsize)
@@ -445,4 +434,90 @@ void *memmem(const void *haystack, size_t hlen,
     }
 
   return NULL;
+}
+
+void store_request_serv(char* buf, int size, struct serv_rep* state)
+{
+  /* Store away in fsm */
+  memcpy(state->response + state->end_idx, buf, size);
+  state->end_idx += size;
+
+  return;
+}
+
+int parse_headers_serv(fsm* state)
+{
+  char* CRLF; char* hdr_start; size_t length;
+  struct serv_rep* servst = state->servst;
+  char* body_size;
+
+  /* Check for CRLF */
+  CRLF = memmem(servst->response, state->end_idx, "\r\n\r\n", strlen("\r\n\r\n"));
+
+  if (CRLF == NULL)
+    return -1;
+
+  hdr_start = memmem(state->response, state->end_idx, "Content-Length:",
+                  strlen("Content-Length:"));
+
+  CRLF = memmem(hdr_start, state->end_idx, "\r\n", strlen("\r\n"));
+  length = (size_t)(CRLF - hdr_start);
+  hdr_start = strndup(hdr_start, length); // Free this guy please.
+
+  if(strtok(hdr_start," ") == NULL)
+    {free(hdr_start); return 411;}
+
+  if((body_size = strtok(NULL, " ")) == NULL)
+    {free(hdr_start); return 411;}
+
+  /* Check for valid Content-Length */
+  if(!validsize(body_size))
+    {free(hdr_start); return 411;}
+
+  servst->body_size = (size_t)atoi(body_size);
+  servst->body      = calloc(1, servst->body_size + 1);
+  servst->headers = (char *) 1; // Just to go with the flow.
+  free(hdr_start);
+
+  return 0;
+}
+
+
+int  parse_body_serv(struct serv_rep* servst, char* buf, ssize_t n)
+{
+  // ASSERT: buf contains only pure data, no headers and stuff.
+
+  int remaining = servst->body_size - servst->body_idx;
+
+  if (n == 0)
+    return -1;
+
+  if (n <= remaining)
+    {
+      memcpy(servst->body + servst->body_idx, buf, n);
+      servst->body_idx += n;
+
+      if(n == remaining)
+        return 0;
+
+      return -1;
+    }
+
+  // ASSERT: n > remaining
+  memcpy(servst->body + servst->body_idx, buf, remaining);
+  servst->body_idx += remaining;
+
+  return resetbuf_serv(buf, remaining, n);
+}
+
+/******************************************************************/
+/* @brief Removes prefixlen bytes from the head of buf and pushes */
+/*        everything after upwards.                               */
+/* @returns totalen - prefixlen                                   */
+/******************************************************************/
+int resetbuf_serv(char* buf, int prefixlen, ssize_t totalen)
+{
+  memmove(buf, buf+prefixlen, totalen - prefixlen);
+  memset(buf + totalen-prefixlen, 0, prefixlen);
+  return totalen-prefixlen;
 }

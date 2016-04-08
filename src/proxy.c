@@ -34,7 +34,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "lisod.h"
+#include "proxy.h"
 #include "logger.h"
 #include "engine.h"
 #include "parse.h"
@@ -53,25 +53,25 @@ char* www_ip;
 /** Prototypes **/
 
 int  close_socket(int sock);
-void init_pool(int listenfd, int https_fd, pool *p);
-void add_client(int client_fd, char* wwwfolder, SSL* client_context, pool *p);
+void init_pool(int listenfd, pool *p);
+void add_client(int client_fd, pool *p);
 void check_clients(pool *p);
 void cleanup(int sig);
 void sigchld_handler(int sig);
-void connect_server(fsm* state);
+int connect_server(fsm* state);
 
 /** Definitions **/
 
 int main(int argc, char* argv[])
 {
   if (argc != 7 && argc != 8) // argc = 9
-  {
-    fprintf(stderr, "%d \n", argc);
-    fprintf(stderr, "usage: %s <log> <alpha> <listen-port> ", argv[0]);
-    fprintf(stderr, "<fake-ip> <dns-ip> <dns-port> ");
-    fprintf(stderr, "<www-ip> \n");
-    return EXIT_FAILURE;
-  }
+    {
+      fprintf(stderr, "%d \n", argc);
+      fprintf(stderr, "usage: %s <log> <alpha> <listen-port> ", argv[0]);
+      fprintf(stderr, "<fake-ip> <dns-ip> <dns-port> ");
+      fprintf(stderr, "<www-ip> \n");
+      return EXIT_FAILURE;
+    }
 
   /* Ignore SIGPIPE */
   signal(SIGPIPE, SIG_IGN);
@@ -91,12 +91,6 @@ int main(int argc, char* argv[])
   dns_port          = atoi(argv[6]);
   if(argc == 8)     www_ip = argv[7];
 
-  /* Various buffers for read/write */
-  char log_buf[LOG_SIZE]            = {0};
-  char hostname[LOG_SIZE]           = {0};
-  char serv_ip[INET_ADDRSTRLEN]     = {0};
-  char port[10]                     = {0};
-
   int                 listen_fd, client_fd;
   socklen_t           cli_size;
   struct sockaddr_in  serv_addr, cli_addr;
@@ -107,17 +101,17 @@ int main(int argc, char* argv[])
   /********* BEGIN INIT *******/
 
   if(pool == NULL)
-  {
-    return EXIT_FAILURE;
-  }
+    {
+      return EXIT_FAILURE;
+    }
 
   fprintf(stdout, "-----Welcome to Proxy!-----\n");
 
   /* all networked programs must create a socket */
   if ((listen_fd = socket(PF_INET, SOCK_STREAM, 0)) == -1)
-  {
-    return EXIT_FAILURE;
-  }
+    {
+      return EXIT_FAILURE;
+    }
 
   /* These will help a client connect to the proxy */
   serv_addr.sin_family        = AF_INET;
@@ -128,23 +122,23 @@ int main(int argc, char* argv[])
   int enable = -1;
   if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &enable,
                  sizeof(int)) == -1)
-  {
-    close_socket(listen_fd);
-    return EXIT_FAILURE;
-  }
+    {
+      close_socket(listen_fd);
+      return EXIT_FAILURE;
+    }
 
   /* servers bind sockets to ports---notify the OS they accept connections */
   if (bind(listen_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)))
-  {
-    close_socket(listen_fd);
-    return EXIT_FAILURE;
-  }
+    {
+      close_socket(listen_fd);
+      return EXIT_FAILURE;
+    }
 
   if (listen(listen_fd, 5))
-  {
-    close_socket(listen_fd);
-    return EXIT_FAILURE;
-  }
+    {
+      close_socket(listen_fd);
+      return EXIT_FAILURE;
+    }
 
   /* Initialize our pool of fds */
   init_pool(listen_fd, pool);
@@ -155,43 +149,43 @@ int main(int argc, char* argv[])
 
   /* finally, loop waiting for input and then write it back */
   while (1)
-  {
-    /* Block until there are file descriptors ready */
-    pool->readfds = pool->masterfds;
-    pool->writefds = pool->masterfds;
-
-    if((pool->nready = select(pool->maxfd+1, &pool->readfds, &pool->writefds,
-                              NULL, &tv)) == -1)
     {
-      close_socket(listen_fd);
-      return EXIT_FAILURE;
+      /* Block until there are file descriptors ready */
+      pool->readfds = pool->masterfds;
+      pool->writefds = pool->masterfds;
+
+      if((pool->nready = select(pool->maxfd+1, &pool->readfds, &pool->writefds,
+                                NULL, &tv)) == -1)
+        {
+          close_socket(listen_fd);
+          return EXIT_FAILURE;
+        }
+
+      /* Is the http port having clients ? */
+      if (FD_ISSET(listen_fd, &pool->readfds))
+        {
+          cli_size = sizeof(cli_addr);
+          if ((client_fd = accept(listen_fd, (struct sockaddr *) &cli_addr,
+                                  &cli_size)) == -1)
+            {
+              close(listen_fd);
+              return EXIT_FAILURE;
+            }
+
+          add_client(client_fd, pool);
+        }
+
+      /* Read and respond to each client requests */
+      check_clients(pool);
     }
-
-    /* Is the http port having clients ? */
-    if (FD_ISSET(listen_fd, &pool->readfds))
-    {
-      cli_size = sizeof(cli_addr);
-      if ((client_fd = accept(listen_fd, (struct sockaddr *) &cli_addr,
-                              &cli_size)) == -1)
-      {
-        close(listen_fd);
-        return EXIT_FAILURE;
-      }
-
-      add_client(client_fd, pool);
-    }
-
-    /* Read and respond to each client requests */
-    check_clients(pool);
-  }
 }
 
 int close_socket(int sock)
 {
   if (close(sock))
-  {
-    return EXIT_FAILURE;
-  }
+    {
+      return EXIT_FAILURE;
+    }
   return EXIT_SUCCESS;
 }
 
@@ -201,7 +195,7 @@ int close_socket(int sock)
  * @param listenfd The socket for listening for new connections.
  * @paran p        The pool struct to initialize.
  */
-void init_pool(int listenfd, int https_fd, pool *p)
+void init_pool(int listenfd, pool *p)
 {
   p->maxi = -1;
 
@@ -213,7 +207,6 @@ void init_pool(int listenfd, int https_fd, pool *p)
   p->maxfd = listenfd;
   FD_ZERO(&p->masterfds);
   FD_SET(listenfd, &p->masterfds);
-  FD_SET(https_fd, &p->masterfds);
 }
 
 /*
@@ -245,7 +238,7 @@ void add_client(int client_fd, pool *p)
   state->resp_idx   = 0;
 
   state->conn       = 1;
-  bzero(state->cli_ip, INET_ADDRSTRLEN);
+  bzero(state->serv_ip, INET_ADDRSTRLEN);
 
   connect_server(state);
 
@@ -254,32 +247,32 @@ void add_client(int client_fd, pool *p)
   memset(state->freebuf, 0, FREE_SIZE*sizeof(char*));
 
   for (i = 0; i < FD_SETSIZE; i++)  /* Find an available slot */
-  {
-    if(p->clientfd[i] < 0) {   /* Found one free slot */
-      p->clientfd[i] = client_fd;
+    {
+      if(p->clientfd[i] < 0) {   /* Found one free slot */
+        p->clientfd[i] = client_fd;
 
-      /* Add the descriptor to the master set */
-      FD_SET(client_fd, &p->masterfds);
+        /* Add the descriptor to the master set */
+        FD_SET(client_fd, &p->masterfds);
 
-      /* Add fsm to pool */
-      p->states[i] = state;
+        /* Add fsm to pool */
+        p->states[i] = state;
 
-      /* Update max descriptor and max index */
-      if (client_fd > p->maxfd)
-        p->maxfd = client_fd;
-      if (i > p->maxi)
-        p->maxi = i;
-      break;
+        /* Update max descriptor and max index */
+        if (client_fd > p->maxfd)
+          p->maxfd = client_fd;
+        if (i > p->maxi)
+          p->maxi = i;
+        break;
+      }
     }
-  }
 
   if (i == FD_SETSIZE)   /* There are no empty slots */
-  {
-    client_error(state, 503);
-    send(client_fd, state->response, state->resp_idx, 0);
-    close_socket(client_fd);
-    free(state);
-  }
+    {
+      client_error(state, 503);
+      send(client_fd, state->response, state->resp_idx, 0);
+      close_socket(client_fd);
+      free(state);
+    }
 }
 
 /*********************************************************************/
@@ -293,226 +286,234 @@ void add_client(int client_fd, pool *p)
 /*********************************************************************/
 void check_clients(pool *p)
 {
-  int i, client_fd, cgi_fd, n, error;
+  int i, client_fd, n, error;
   fsm* state;
-  char buf[BUF_SIZE] = {0}; char log_buf[LOG_SIZE] = {0};
+  char buf[BUF_SIZE] = {0};
   struct serv_rep* servst;
 
   memset(buf,0,BUF_SIZE);
 
   /* Iterate through all clients, and read their data */
   for(i = 0; (i <= p->maxi) && (p->nready > 0); i++)
-  {
-    if((client_fd = p->clientfd[i]) <= 0)
-      continue;
-
-    state     = p->states[i];
-
-    /* If a descriptor is ready to be read, read a line from it */
-    if (client_fd > 0 && FD_ISSET(client_fd, &p->readfds))
     {
-      p->nready--;
-
-      state = p->states[i];
-
-      /* Recv bytes from the client */
-      n = Recv(client_fd, NULL, buf, BUF_SIZE);
-
-      /* We have received bytes, send for parsing. */
-      if (n >= 1)
-      {
-        store_request(buf, n, state);
-
-        /* The loop that keeps servicing pipelined request */
-        do{
-          /* First, parse method, URI and version. */
-          if(state->method == NULL)
-          {
-            /* Malformed Request */
-            if((error = parse_line(state)) != 0 && error != -1)
-            {
-              client_error(state, error);
-              if (Send(client_fd, NULL, state->response, state->resp_idx)
-                  != state->resp_idx)
-              {
-                rm_client(client_fd, p, "Unable to write to client", i);
-                break;
-              }
-              rm_client(client_fd, p, "HTTP error", i);
-              break;
-            }
-
-            /* Incomplete request, save and continue to next client */
-            if(error == -1) break;
-           }
-
-          /* Then, parse headers. */
-          if(state->header == NULL && state->method != NULL)
-          {
-            if((error = parse_headers(state)) != 0)
-            {
-              client_error(state, error);
-              if (Send(client_fd, NULL, state->response, state->resp_idx) !=
-                  state->resp_idx)
-              {
-                rm_client(client_fd, p, "Unable to write to client", i);
-                break;
-              }
-              rm_client(client_fd, p, "HTTP error", i);
-              break;
-            }
-          }
-
-          /* If POST, parse the body */
-          if(!strncmp(state->method, "POST", strlen("POST")) &&
-             state->body == NULL)
-          {
-            if((error = parse_body(state)) != 0 && error != -1)
-            {
-              client_error(state, error);
-              if (Send(client_fd, NULL, state->response, state->resp_idx) !=
-                  state->resp_idx)
-              {
-                rm_client(client_fd, p, "Unable to write to client", i);
-                break;
-              }
-              rm_client(client_fd, p, "HTTP error", i);
-              break;
-            }
-
-            /* Incomplete request, save and continue to next client */
-            if(error == -1) break;
-          }
-
-          /* If everything has been parsed, service the client */
-          if(state->method != NULL && state->header != NULL)
-          {
-            if ((error = service(state)) != 0)
-            {
-              client_error(state, error);
-              if (Send(client_fd, NULL, state->response, state->resp_idx) !=
-                  state->resp_idx)
-              {
-                rm_client(client_fd, p, "Unable to write to client", i);
-                break;
-              }
-              rm_client(client_fd, p, "HTTP error", i);
-              break;
-            }
-
-            /* Clock the start time */
-            clock_gettime(CLOCK_MONOTONIC, state->start);
-
-            /* Regular GET/HEAD */
-            else if (Send(state->servfd, NULL, state->response, state->resp_idx)
-                     != state->resp_idx ||
-                     Send(state->servfd, NULL, state->body, state->body_size)
-                     != state->body_size)
-              {
-                rm_client(client_fd, p, "Unable to write to server", i);
-                break;
-              }
-
-            memset(buf,0,BUF_SIZE);
-          }
-
-          /* Finished serving one request, reset buffer */
-          state->end_idx = resetbuf(state);
-          clean_state(state);
-          if(!state->conn) rm_client(client_fd, p, "Connection: close", i);
-        } while(error == 0 && state->conn);
+      if((client_fd = p->clientfd[i]) <= 0)
         continue;
-      }
 
-      /* Client sent EOF, close socket. */
-      if (n == 0)
-      {
-        rm_client(client_fd, p, "Client closed connection with EOF", i);
-      }
+      state     = p->states[i];
 
-      /* Error with recv */
-      if (n == -1)
-      {
-        rm_client(client_fd, p, "Error reading from client socket", i);
-      }
-    } // End of client read check
+      /* If a descriptor is ready to be read, read a line from it */
+      if (client_fd > 0 && FD_ISSET(client_fd, &p->readfds))
+        {
+          p->nready--;
 
-    memset(buf,0,BUF_SIZE);
+          state = p->states[i];
 
-    if(state->servfd > 0 && FD_ISSET(state->servfd, &p->readfds))
-      {
-        p->nready--;
+          /* Recv bytes from the client */
+          n = Recv(client_fd, buf, BUF_SIZE);
 
-        /* Receive bytes from the webserver */
-        n = Recv(state->servfd, NULL, buf, BUF_SIZE);
+          /* We have received bytes, send for parsing. */
+          if (n >= 1)
+            {
+              store_request(buf, n, state);
 
-        clock_gettime(CLOCK_MONOTONIC, state->end);
+              /* The loop that keeps servicing pipelined request */
+              do{
+                /* First, parse method, URI and version. */
+                if(state->method == NULL)
+                  {
+                    /* Malformed Request */
+                    if((error = parse_line(state)) != 0 && error != -1)
+                      {
+                        client_error(state, error);
+                        if (Send(client_fd, state->response, state->resp_idx)
+                            != state->resp_idx)
+                          {
+                            rm_client(client_fd, p, i);
+                            break;
+                          }
+                        rm_client(client_fd, p, i);
+                        break;
+                      }
 
-        if (n >= 1)
-          {
-            store_request(buf, n, state->servst);
+                    /* Incomplete request, save and continue to next client */
+                    if(error == -1) break;
+                  }
 
-            servst = state->servst;
+                /* Then, parse headers. */
+                if(state->header == NULL && state->method != NULL)
+                  {
+                    if((error = parse_headers(state)) != 0)
+                      {
+                        client_error(state, error);
+                        if (Send(client_fd, state->response, state->resp_idx) !=
+                            state->resp_idx)
+                          {
+                            rm_client(client_fd, p, i);
+                            break;
+                          }
+                        rm_client(client_fd, p, i);
+                        break;
+                      }
+                  }
 
-            /* perform the pipelining loop */
-            do {
-              /* Parse the status line */
-              if (servst->status == NULL)
-                {
-                  if((error = parse_status(servst)) != 0 && error != -1)
-                    {
-                      printf("parse_status error!!\n");
-                      exit(0);
-                    }
-                }
+                /* If POST, parse the body */
+                if(!strncmp(state->method, "POST", strlen("POST")) &&
+                   state->body == NULL)
+                  {
+                    if((error = parse_body(state)) != 0 && error != -1)
+                      {
+                        client_error(state, error);
+                        if (Send(client_fd, state->response, state->resp_idx) !=
+                            state->resp_idx)
+                          {
+                            rm_client(client_fd, p, i);
+                            break;
+                          }
+                        rm_client(client_fd, p, i);
+                        break;
+                      }
 
-              /* Incomplete response; save and move on */
-              if(error == -1) break;
+                    /* Incomplete request, save and continue to next client */
+                    if(error == -1) break;
+                  }
 
-              /* Parse the headers */
-              if(servst->headers == NULL && servst->status != NULL)
-                {
-                  if((error = parse_headers(servst)) != 0 && error != -1)
-                    {
-                      printf("parse_status error!!\n");
-                      exit(0);
-                    }
-                }
+                /* If everything has been parsed, service the client */
+                if(state->method != NULL && state->header != NULL)
+                  {
+                    if ((error = service(state)) != 0)
+                      {
+                        client_error(state, error);
+                        if (Send(client_fd, state->response, state->resp_idx) !=
+                            state->resp_idx)
+                          {
+                            rm_client(client_fd, p, i);
+                            break;
+                          }
+                        rm_client(client_fd, p, i);
+                        break;
+                      }
 
-              if(error == -1) break;
+                    /* Regular GET/HEAD */
+                    else if (Send(state->servfd, state->response, state->resp_idx)
+                             != state->resp_idx ||
+                             Send(state->servfd, state->body, state->body_size)
+                             != state->body_size)
+                      {
+                        rm_client(client_fd, p, i);
+                        break;
+                      }
 
-              /* Parse the body */
-              if(servst->status != NULL && servst->headers !=NULL)
-                {
-                  if((error = parse_body(servst)) != 0 && error != -1)
-                    {
-                      printf("parse_status error!!\n");
-                      exit(0);
-                    }
-                }
+                    /* Clock the start time */
+                    clock_gettime(CLOCK_MONOTONIC, &state->start);
 
-              if(error == -1) break;
+                    memset(buf,0,BUF_SIZE);
+                  }
 
-              /* Everything has been parsed. */
-              /* If .f4m file, proceed to save it.*/
-              /* Else, just send it to the client. */
-              if(state->expecting == REGF4M)
-                {
-                  parse_f4m(state);
-                  servst->expecting = NOLIST;
-                }
-              else // VIDEO or NOLIST
-                {
-                  /* Just pass it on to the client */
-                  Send(client_fd, NULL, buf, n);
-                }
-
-              /* Calculate new throughput here */
-              calculate_bitrate(state);
+                /* Finished serving one request, reset buffer */
+                state->end_idx = resetbuf(state);
+                clean_state(state);
+                if(!state->conn) rm_client(client_fd, p, i);
+              } while(error == 0 && state->conn);
+              continue;
             }
-          }
-      } // End of webserver read check
-  } // End of single client loop.
+
+          /* Client sent EOF, close socket. */
+          if (n == 0)
+            {
+              rm_client(client_fd, p, i);
+            }
+
+          /* Error with recv */
+          if (n == -1)
+            {
+              rm_client(client_fd, p, i);
+            }
+        } // End of client read check
+
+      memset(buf,0,BUF_SIZE);
+
+      /* Check if the webserver has sent something to be relayed to this client */
+      if(state->servfd > 0 && FD_ISSET(state->servfd, &p->readfds))
+        {
+          p->nready--;
+
+          /* Receive bytes from the webserver */
+          n = Recv(state->servfd, buf, BUF_SIZE);
+
+          clock_gettime(CLOCK_MONOTONIC, &state->end);
+
+          if (n >= 1)
+            {
+              servst = state->servst;
+
+              /* perform the pipelining loop */
+              do {
+
+                /* If not, REGF4M, just send it away */
+                if(servst->expecting != REGF4M)
+                  {
+                    /* Just pass it on to the client */
+                    Send(client_fd, buf, n);
+
+                    state->body_size = n;
+
+                    /* Calculate new throughput here */
+                    calculate_bitrate(state);
+
+                    break;
+                  }
+
+                /* Is this the body or the status/headers? */
+                if (servst->headers == NULL)
+                  /*  Store the status msg */
+                  store_request_serv(buf, n, state->servst);
+
+                /* Parse the headers */
+                if(servst->headers == NULL)
+                  {
+                    if((error = parse_headers_serv(state)) != 0 && error != -1)
+                      {
+                        printf("parse_status error!!\n");
+                        exit(0);
+                      }
+
+                    /* Remove headers and store only body data from buf */
+                    if(error == 0)
+                      {
+                        char* CRLF = memmem(buf, n, "\r\n\r\n", strlen("\r\n\r\n"));
+                        n = resetbuf_serv(buf, CRLF+4 - buf, n);
+                      }
+
+                    /* Incomplete headers, save and work on this later */
+                    if(error == -1) break;
+                  }
+
+                /* Parse the body */
+                if(servst->headers != NULL && servst->body_idx < servst->body_size)
+                  {
+                    error = parse_body_serv(servst, buf, n);
+
+                    /* More body data has to be sent, save for later */
+                    if(error == -1) break;
+                  }
+
+                /* Everything has been parsed. */
+                /* If .f4m file, proceed to save it.*/
+                parse_f4m(state);
+                servst->expecting = NOLIST;
+
+                /* Cleanup servstate */
+                free(servst->body);
+                servst->body = NULL;
+
+                if(error == 0)
+                  break;
+
+                n = error;
+              } while(error > 0);
+            }
+        } // End of webserver read check
+    } // End of single client loop.
 }
 
 /***************************************************************************/
@@ -524,11 +525,10 @@ void check_clients(pool *p)
 /* @param logmsg     A msg to write to the logfile                         */
 /* @param i          The index into the pool                               */
 /***************************************************************************/
-void rm_client(int client_fd, pool* p, char* logmsg, int i)
+void rm_client(int client_fd, pool* p, int i)
 {
   /* Sanitize memory */
   fsm* state = p->states[i];
-  if(state->context != NULL) SSL_free(state->context);
   delfromfree(state->freebuf, FREE_SIZE);
   free(state);
 
@@ -553,7 +553,7 @@ void client_error(fsm* state, int error)
   memset(response,0,BUF_SIZE);
 
   switch (error)
-  {
+    {
     case 404:
       errnum    = "404";
       errormsg  = "Not Found";
@@ -581,7 +581,7 @@ void client_error(fsm* state, int error)
     case 400:
       errnum    = "400";
       errormsg  = "Bad Request";
-  }
+    }
 
   /* Build the HTTP response body */
   sprintf(response, "HTTP/1.1 %s %s\r\n", errnum, errormsg);
@@ -620,11 +620,11 @@ sigchld_handler(int sig)
   appease_compiler += sig;
 
   while((pid = waitpid(-1, &status, WNOHANG|WUNTRACED)) > 0)
-  {
-    /* Child terminated because of a
-     * signal that was not caught. */
-    fprintf(stderr, "Child reaped\n");
-  }
+    {
+      /* Child terminated because of a
+       * signal that was not caught. */
+      fprintf(stderr, "Child reaped\n");
+    }
   return;
 }
 
@@ -632,7 +632,7 @@ sigchld_handler(int sig)
 /* @brief Connects to the webserver that has the videos.    */
 /* @param state - The state of the client behind the proxy. */
 /************************************************************/
-void connect_server(fsm* state)
+int connect_server(fsm* state)
 {
   int status, sock;
   struct addrinfo hints; struct sockaddr_in fake;
@@ -675,4 +675,6 @@ void connect_server(fsm* state)
   strncpy(state->serv_ip, www_ip, INET_ADDRSTRLEN);
 
   freeaddrinfo(servinfo);
+
+  return EXIT_SUCCESS;
 }

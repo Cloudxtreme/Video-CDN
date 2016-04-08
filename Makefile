@@ -9,20 +9,16 @@
 CC			= gcc
 CFLAGS 	= -Wall -Wextra -Werror -g -std=gnu99
 VPATH 	=	src
+OBJS		= proxy.o logger.o parse.o engine.o
 
-all: lisod
+all: proxy
 
-lisod: proxy.c logger.o engine.o parse.o
-	$(CC) $(CFLAGS) proxy.c logger.o engine.o -o proxy
+# Implicit .o target
+.c.o:
+	$(CC) -c $(CFLAGS) $<
 
-logger: logger.h logger.c
-	$(CC) $(CFLAGS) logger.c -o logger.o
-
-engine: engine.h engine.c
-	$(CC) $(CFLAGS) engine.c -o engine.o
-
-parse: parse.h parse.c
-	$(CC) $(CFLAGS) parse.c -o parse.o
+proxy: $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 handin:
 	(make clean; cd ..; tar cvf fabubake.tar 15-441-project-1 --exclude cp1_checker.py --exclude starter_code --exclude www --exclude flaskr --exclude handin.txt --exclude logfile --exclude ".gdbinit" --exclude ".gitignore" --exclude cgi_script.py --exclude cgi_example.c --exclude daemonize.c);

@@ -11,6 +11,7 @@
 #include <strings.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include "proxy.h"
 
 #define BUF_SHORT 1024	//A small character buffer size
 
@@ -40,14 +41,12 @@ typedef struct client_req{
 	char  path[BUF_SHORT];
 } client_req;
 
-typedef struct serv_rep {
-  // Malek, plz make this.
-} serv_rep;
-
-int  calculate_bitrate(struct timespec *start, struct timespec *end, int size);
-void parse_server_message(char *msg);
-void parse_client_message(char *msg, int bitrate);
+void parse_f4m(fsm* state);
+void calculate_bitrate(fsm* state);
+void parse_client_message(struct state *client);
 
 extern float alpha;
+
+
 
 #endif

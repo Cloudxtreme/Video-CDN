@@ -9,12 +9,11 @@ void parse_f4m(fsm* state)
 {
   struct serv_rep* servst = state->servst;
   char *buf = servst->body, *needle1 = NULL, *needle2 = NULL;
-  char[200] number = {0};
-  size_t n  = 0, len = 0;
+  char number[200] = {0};
+  size_t len = 0;
   int bitrate_f4m = 0;
   struct bitrate* rate = NULL;
 
-  /* Getline allocates a null-terminated buffer for you internally. */
   while((needle1 = strstr(buf, "bitrate=")) != NULL)
     {
       needle2 = strstr(needle1 + strlen("bitrate=") + 1, "\"");
@@ -45,29 +44,30 @@ void getSubstring(char *dest, char *src, int start, int end){
 void calculate_bitrate(fsm* state){
 
   int    size            = state->body_size;
-  struct timespec *start = state->start;
-  struct timespec *end   = state->end;
+  struct timespec *start = &(state->start);
+  struct timespec *end   = &(state->end);
   unsigned long long int    bitrate;
   unsigned long long int    current_best;
 
   unsigned long long int start_time =
     1000 * (start->tv_sec) + (start->tv_nsec) / 1000000;
   unsigned long long int end_time =
-    1000 * (end.tv->sec) + (end->tv_nsec) / 1000000;
+    1000 * (end->tv_sec) + (end->tv_nsec) / 1000000;
   unsigned int long long elapsed = end_time - start_time;
   double throughput = (size * 8) / elapsed;
 
   struct bitrate* current = NULL;
   struct bitrate* tmp     = NULL;
-  state->avg_tput = (alpha * through) + (1 - alpha)*(state->avg_tput);
+  state->avg_tput = (alpha * throughput) + (1 - alpha)*(state->avg_tput);
 
   HASH_ITER(hh, state->all_bitrates, current, tmp) {
     /* This code loops through all struct bitrates */
     bitrate = current->bitrate;
     if((bitrate * 1500000) < state->avg_tput){
-      current_best = bitrate;
-    } else {
-      break;
+      {
+        if(bitrate > current_best)
+          current_best = bitrate;
+      }
     }
   }
 
@@ -79,7 +79,7 @@ void copy_info(client_req *my_req, struct state *client){
   memcpy(my_req->req_type, client->method, strlen(client->method));
   memcpy(my_req->URI, client->uri, strlen(client->uri));
   memcpy(my_req->version, client->version, strlen(client->version));
-  my_req->bitrate = client->bitrate; //Change later
+  my_req->bitrate = client->current_best; //Change later
 }
 
 void parse_URI(client_req *my_req){
@@ -103,9 +103,6 @@ void parse_URI(client_req *my_req){
 
 //Assumes we're dealing with video chunk
 void parse_file(client_req *my_req){
-  int birate;
-  int seq_num;
-  int frag_num;
   char str_bitrate[BUF_SHORT];
   char str_seq_num[BUF_SHORT];
   char str_frag_num[BUF_SHORT];
@@ -157,8 +154,9 @@ void parse_client_message(struct state *client){
   char response2[BUF_SHORT];
   char *ext_loc;
   int  ext_pos;
-  client_req *my_req = calloc(1, client_req *);
+  client_req *my_req = calloc(1, sizeof(client_req));
 
+  memset(client->response, 0, BUF_SIZE);
   memset(response, 0, BUF_SHORT);
   memset(response2, 0, BUF_SHORT);
   copy_info(my_req, client);
@@ -181,25 +179,31 @@ void parse_client_message(struct state *client){
   }
 
   if(manifest){
-    ext_loc = strstr(client_req->file, ".");
+    ext_loc = strstr(my_req->file, ".");
     //ASSERT(ext_loc != NULL)
-    ext_pos = ext_loc - (client_req->file);
-    getSubstring(response2, client_req->file, 0, ext_pos);
-    sprintf(response2, "%s%s_nolist.f4m", client_req->path, response2);
-    sprintf(response, "GET %s HTTP/1.1\r\n", client_req->URI);
-    sprintf(response, "%sGET %s HTTP/1.1\r\n", response, response2);
-    state->expecting = REGF4M;
+    ext_pos = ext_loc - (my_req->file);
+    getSubstring(response2, my_req->file, 0, ext_pos);
+    sprintf(response2, "%s%s_nolist.f4m", my_req->path, response2);
+    sprintf(response, "GET %s HTTP/1.1\r\n", my_req->URI);
+    sprintf(response, "%s%sGET %s HTTP/1.1\r\n%s", response, client->header, response2, client->header);
+    client->servst->expecting = REGF4M;
+
   } else if(fragment){
-    sprintf(response, "GET %s%dSeg%d-Frag%d.f4f HTTP/1.1\r\n",client_req->path,
-                   client_req->bitrate, client_req->segno, client_req->fragno);
-    state->expecting = VIDEO;
-    state->lastchunk = my_req->file;
-  } else if(!manifest && !fragment){
-    sprintf(response, "GET %s HTTP/1.1\r\n", client_req->URI);
-    state->expecting = VIDEO;
+    sprintf(response, "GET %s%dSeg%d-Frag%d.f4f HTTP/1.1\r\n%s", my_req->path,
+            my_req->bitrate, my_req->segno, my_req->fragno, client->header);
+    client->servst->expecting = VIDEO;
+
+    bzero(client->lastchunk, 200);
+    memcpy(client->lastchunk, my_req->file, 200);
+  }
+  else if(!manifest && !fragment){
+    sprintf(response, "GET %s HTTP/1.1\r\n%s", my_req->URI, client->header);
+    client->servst->expecting = VIDEO;
+
   } else {
     //Impossible
   }
   free(my_req);
-  return response;
+  memcpy(client->response, response, strlen(response));
+  client->resp_idx = strlen(response);
 }

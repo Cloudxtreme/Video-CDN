@@ -4,6 +4,7 @@
 #include <sys/select.h>
 #include <openssl/ssl.h>
 #include <netinet/in.h>
+#include "uthash.h"
 
 #define BUF_SIZE  8192
 #define LOG_SIZE  1024
@@ -13,7 +14,7 @@
 #define REGF4M  2
 #define VIDEO   3
 
-typedef struct serv_rep {
+struct serv_rep {
   char response[BUF_SIZE]; // arr of chars containing response from server.
 
   char* status;
@@ -22,11 +23,11 @@ typedef struct serv_rep {
   char* body;  // alloc memory for body to recv
   ssize_t body_size; // size of body to recv
 
-  int end_idx; // used to mark end of data in buffer
-  int resp_idx; // used to mark end of response buffer
+  int end_idx; // used to mark end of data in response buffer
+  int body_idx; // used to mark end of data in body buffer
 
   int expecting; // What is the server sending me?
-}
+};
 
 typedef struct state {
   char request[BUF_SIZE]; // arr of chars containing the text of the request.
@@ -56,7 +57,7 @@ typedef struct state {
   struct timespec end;   // Time of receiving complete chunk data.
 
   double avg_tput;        // Average tput using EWMA.
-  unsigned long long curBitrate;
+  unsigned long long current_best;
   char lastchunk[300];
 
   char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeing
@@ -75,16 +76,16 @@ typedef struct pool {
   int clientfd[FD_SETSIZE];
 
   char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeing */
-  fsm* states[FD_SETSIZE]; /* Array of states for each client */
+  fsm* states[FD_SETSIZE];    /* Array of states for each client */
 
 } pool;
 
-typedef struct bitrate {
+struct bitrate {
   int bitrate;
   UT_hash_handle hh;
 };
 
-void rm_client(int client_fd, pool* p, char* logmsg, int i);
+void rm_client(int client_fd, pool* p, int i);
 void rm_cgi(int cgi_fd, pool* p, char* logmsg, int i);
 void client_error(fsm* state, int error);
 void cleanup(int sig);
