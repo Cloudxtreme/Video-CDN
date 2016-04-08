@@ -96,7 +96,7 @@ void parse_URI(client_req *my_req){
   char temp[BUF_SHORT];
   memset(temp, 0, BUF_SHORT);
 
-  while(!last_slash){
+  while(last_slash){
     memset(temp, 0, BUF_SHORT);
     memcpy(temp, last_slash, strlen(last_slash));
     last_slash = strstr(last_slash + 1, "/");
