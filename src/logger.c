@@ -55,7 +55,10 @@ int log_state(fsm* state, FILE* file, double tput, char* chunkname)
   unsigned long long bitrate = state->current_best;
   char*  server              = state->serv_ip;
 
-  fprintf(file, "%ld %lld.%.9ld %f %f %llu %s %s \n \n",
+  if(strlen(chunkname) == 0)
+    return 0;
+
+  fprintf(file, "%ld %lld.%.9ld %f %f %llu %s %s \n",
           time(NULL),
           (long long)duration.tv_sec,
           duration.tv_nsec,
