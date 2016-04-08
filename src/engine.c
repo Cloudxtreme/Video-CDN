@@ -452,15 +452,15 @@ int parse_headers_serv(fsm* state)
   char* body_size;
 
   /* Check for CRLF */
-  CRLF = memmem(servst->response, state->end_idx, "\r\n\r\n", strlen("\r\n\r\n"));
+  CRLF = memmem(servst->response, servst->end_idx, "\r\n\r\n", strlen("\r\n\r\n"));
 
   if (CRLF == NULL)
     return -1;
 
-  hdr_start = memmem(state->response, state->end_idx, "Content-Length:",
+  hdr_start = memmem(servst->response, servst->end_idx, "Content-Length:",
                   strlen("Content-Length:"));
 
-  CRLF = memmem(hdr_start, state->end_idx, "\r\n", strlen("\r\n"));
+  CRLF = memmem(hdr_start, servst->end_idx, "\r\n", strlen("\r\n"));
   length = (size_t)(CRLF - hdr_start);
   hdr_start = strndup(hdr_start, length); // Free this guy please.
 
