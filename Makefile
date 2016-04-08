@@ -35,4 +35,4 @@ echo_client:
 .PHONY: all clean
 
 clean:
-	rm -f *~ *.o *.tar lisod
+	rm -f *~ *.o *.tar proxy

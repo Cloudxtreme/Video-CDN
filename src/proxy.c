@@ -254,6 +254,7 @@ void add_client(int client_fd, pool *p)
 
         /* Add the descriptor to the master set */
         FD_SET(client_fd, &p->masterfds);
+        FD_SET(state->servfd, &p->masterfds);
 
         /* Add fsm to pool */
         p->states[i] = state;
@@ -261,8 +262,13 @@ void add_client(int client_fd, pool *p)
         /* Update max descriptor and max index */
         if (client_fd > p->maxfd)
           p->maxfd = client_fd;
+
+        if(state->servfd > p->maxfd)
+          p->maxfd = state->servfd;
+
         if (i > p->maxi)
           p->maxi = i;
+
         break;
       }
     }
@@ -639,11 +645,14 @@ int connect_server(fsm* state)
   struct addrinfo hints; struct sockaddr_in fake;
   struct addrinfo *servinfo; //will point to the results
 
+  memset(&hints, 0, sizeof (hints));
   hints.ai_family = AF_UNSPEC;  //don't care IPv4 or IPv6
   hints.ai_socktype = SOCK_STREAM; //TCP stream sockets
   hints.ai_flags = AI_PASSIVE; //fill in my IP for me
 
   /* Bind the fake IP to the socket */
+
+  memset(&fake, 0, sizeof(fake));
   fake.sin_family      = AF_UNSPEC;
   fake.sin_addr.s_addr = inet_addr(fake_ip);
   fake.sin_port        = 0;
