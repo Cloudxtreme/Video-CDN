@@ -50,11 +50,12 @@ void calculate_bitrate(fsm* state){
   unsigned long long int    current_best;
 
   unsigned long long int start_time =
-    1000 * (start->tv_sec) + (start->tv_nsec) / 1000000;
+    1000000000 * (start->tv_sec) + (start->tv_nsec);
   unsigned long long int end_time =
-    1000 * (end->tv_sec) + (end->tv_nsec) / 1000000;
+    1000000000 * (end->tv_sec) + (end->tv_nsec);
   unsigned int long long elapsed = end_time - start_time;
-  double throughput = (size * 8) / elapsed;
+  double throughput = (size * 8) / elapsed; /* bits per nanoseconds */
+  throughput = throughput * 1000000; /* Kbps */
 
   struct bitrate* current = NULL;
   struct bitrate* tmp     = NULL;
@@ -62,6 +63,7 @@ void calculate_bitrate(fsm* state){
 
   HASH_ITER(hh, state->all_bitrates, current, tmp) {
     /* This code loops through all struct bitrates */
+    /* All bitrates are in units of Kbps */
     bitrate = current->bitrate;
     if((bitrate * 1500000) < state->avg_tput){
       {
