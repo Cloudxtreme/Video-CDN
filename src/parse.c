@@ -168,7 +168,7 @@ void parse_client_message(struct state *client){
   memset(response, 0, BUF_SHORT);
   memset(response2, 0, BUF_SHORT);
   copy_info(my_req, client);
-  char *fragment = strstr(client->uri, ".f4f");
+  char *fragment = strstr(client->uri, "Seg");
   char *manifest = strstr(client->uri, ".f4m");
 
   if(manifest){
@@ -198,12 +198,12 @@ void parse_client_message(struct state *client){
     client->servst->expecting = REGF4M;
 
   } else if(fragment){
-    sprintf(response, "GET %s%dSeg%d-Frag%d.f4f HTTP/1.1\r\n%s", my_req->path,
+    sprintf(response, "GET %s%dSeg%d-Frag%d HTTP/1.1\r\n%s", my_req->path,
             my_req->bitrate, my_req->segno, my_req->fragno, client->header);
     client->servst->expecting = VIDEO;
 
     bzero(client->lastchunk, 200);
-    snprintf(client->lastchunk, 200, "%s%dSeg%d-Frag%d.f4f",
+    snprintf(client->lastchunk, 200, "%s%dSeg%d-Frag%d",
              my_req->path,
              my_req->bitrate, my_req->segno, my_req->fragno);
   }
