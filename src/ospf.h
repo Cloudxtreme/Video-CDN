@@ -1,15 +1,14 @@
 #ifndef OSPF_H
 #define OSPF_H
 
-typedef struct santa{
-  char           name[40];
-  UT_hash_handle hh;
-} santa;
 
 typedef struct lsa{
-  char           sender[40];
-  int            seq;
-  santa*         nbors;
+  char 		sender[40];
+  int 		seq;
+  int 		server;
+  int     visited;  // for djikstra
+  size_t 	num_nbors;
+  char** 	nbors;
   UT_hash_handle hh;
 } lsa;
 
