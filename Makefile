@@ -21,7 +21,7 @@ proxy: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 handin:
-	(make clean; cd ..; tar cvf fabubake.tar handin --exclude cp1_checker.py --exclude starter_code --exclude www --exclude flaskr --exclude handin.txt --exclude logfile --exclude ".gdbinit" --exclude ".gitignore" --exclude cgi_script.py --exclude cgi_example.c --exclude daemonize.c --exclude bitrate-project-starter);
+	(make clean; cd ..; tar cvf maleka.tar handin --exclude cp1_checker.py --exclude starter_code --exclude www --exclude flaskr --exclude handin.txt --exclude logfile --exclude ".gdbinit" --exclude ".gitignore" --exclude cgi_script.py --exclude cgi_example.c --exclude daemonize.c --exclude bitrate-project-starter);
 
 test1: proxy
 	./proxy 9999 9998 logfile lockfile www ./flaskr/flaskr.py grader.key grader.crt
