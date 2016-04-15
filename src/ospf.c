@@ -23,7 +23,7 @@ void is_server(char* IP, lsa* myLSA){
 			break;
 		}
 	}
-	free(fp);
+	fclose(fp);
 	return;
 }
 
@@ -71,6 +71,7 @@ void parse_file(){
 		temp = calloc(1, sizeof(lsa));
 		temp->sender = IP;
 		temp->seq = seq;
+		is_server(IP, temp);
 		parse_nbors(temp, nbors);
 		HASH_FIND_STR(lsa_hash, IP, find);
 		if(find == NULL){
