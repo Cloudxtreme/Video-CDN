@@ -1,9 +1,10 @@
 #ifndef OSPF_H
 #define OSPF_H
 
+#define MAX_IP_SIZE		40
 
 typedef struct lsa{
-  char 		sender[40];
+  char 		sender[MAX_IP_SIZE];
   int 		seq;
   int 		server;
   int     visited;  // for djikstra
