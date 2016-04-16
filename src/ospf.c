@@ -64,7 +64,8 @@ void parse_file(){
 	char* 	line = NULL;
 	size_t 	len = 0;
 	ssize_t read;
-	char*	IP;
+	char	IP[MAX_IP_SIZE + 1];
+	memset(IP, 0, MAX_IP_SIZE + 1);
 	int 	seq;
 	char*	nbors;
 	lsa*	temp;
@@ -89,7 +90,6 @@ void parse_file(){
   /*************************************************************************/
 
 	while((read = getline(&line, &len, fp)) != -1){
-		IP = malloc(MAX_IP_SIZE);
 		nbors = malloc(MAX_IP_SIZE * get_comma_count(line));
 		sscanf(line, "%s %d %s", IP, seq, nbors);
 		temp = calloc(1, sizeof(lsa));
@@ -111,6 +111,7 @@ void parse_file(){
 				find->seq = temp->seq;
 			}
 		}
+		free(nbors);
 		free(line);
 	}
 	fclose(fp);
