@@ -229,8 +229,8 @@ dns_message* parse_message(uint8_t* message){
     	info->questions = calloc(1, sizeof(question_answer*));
     	while(counter < qd_count){
     		(info->questions)[counter] = calloc(1, sizeof(question_answer));
-    		mmemmove(((info->questions)[counter])->NAME, temp_message, 2);
-    		mmemmove(((info->questions)[counter])->TYPE, temp_message, 2);
+    		mmemmove(((info->questions)[counter])->NAME,  temp_message, 2);
+    		mmemmove(((info->questions)[counter])->TYPE,  temp_message, 2);
     		mmemmove(((info->questions)[counter])->CLASS, temp_message, 2);
     		counter++;
     	}
@@ -243,9 +243,12 @@ dns_message* parse_message(uint8_t* message){
     	info->answers = malloc(an_count * sizeof(question_answer));
     	while(counter < an_count){
     		(info->answers)[counter] = calloc(1, sizeof(question_answer));
-    		mmemmove(((info->answers)[counter])->NAME, temp_message, 2);
-    		mmemmove(((info->answers)[counter])->TYPE, temp_message, 2);
-    		mmemmove(((info->answers)[counter])->CLASS, temp_message, 2);
+    		mmemmove(((info->answers)[counter])->NAME, 		 temp_message, 2);
+    		mmemmove(((info->answers)[counter])->TYPE, 		 temp_message, 2);
+    		mmemmove(((info->answers)[counter])->CLASS, 	 temp_message, 2);
+    		mmemmove(((info->answers)[counter])->TTL, 		 temp_message, 2);
+    		mmemmove(((info->answers)[counter])->RDLENGTH, 	 temp_message, 2);
+    		mmemmove(((info->answers)[counter])->RDATA,		 temp_message, 2);
     		counter++;
     	}
     } else {
@@ -274,8 +277,8 @@ void gen_other_half(dns_message* info){
  * and answers. It'll make my life easier...
  */
 byte_buf* gen_message(int QR, int OPCODE, int AA, int TC, int AD, int CD, 
-			int RCODE, int QDCOUNT, int ANCOUNT, question_answer** questions,
-			question_answer** answers){
+			int RCODE, int QDCOUNT, int ANCOUNT, question** questions,
+			answer** answers){
 
 	srand(time(NULL));
 	int id = (rand()) & 0xFFFF;
@@ -325,6 +328,9 @@ byte_buf* gen_message(int QR, int OPCODE, int AA, int TC, int AD, int CD,
 		mmemcat(temp_message, ((info->answers)[counter])->NAME, 	2);
 		mmemcat(temp_message, ((info->answers)[counter])->TYPE, 	2);
 		mmemcat(temp_message, ((info->answers)[counter])->CLASS, 	2);
+		mmemcat(temp_message, ((info->answers)[counter])->TTL, 		2);
+		mmemcat(temp_message, ((info->answers)[counter])->RDLENGTH, 2);
+		mmemcat(temp_message, ((info->answers)[counter])->RDATA, 	2);
 		counter++;
 	}
 

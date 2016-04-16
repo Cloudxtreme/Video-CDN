@@ -7,11 +7,20 @@ struct byte_buf {
   size_t bufsize;
 };
 
-typedef struct question_answer{
+typedef struct question{
   uint8_t NAME[2];
   uint8_t TYPE[2];
   uint8_t CLASS[2];
-} question_answer;
+} question;
+
+typedef struct answer{
+  uint8_t NAME[2];
+  uint8_t TYPE[2];
+  uint8_t CLASS[2];
+  uint8_t TTL[2];
+  uint8_t RDLENGTH[2];
+  uint8_t RDATA[2];
+} answer;
 
 typedef struct dns_message{
   uint8_t ID[2];
@@ -30,8 +39,8 @@ typedef struct dns_message{
   uint8_t ANCOUNT[2];
   uint8_t NSCOUNT[2];
   uint8_t ARCOUNT[2];
-  question_answer** questions; //Pointers to an array of questions
-  question_answer** answers; //Pointers to an array of answers
+  question** questions; //Pointers to an array of questions
+  answer** answers; //Pointers to an array of answers
 } dns_message;
 
 /**
