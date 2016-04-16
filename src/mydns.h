@@ -4,8 +4,8 @@
 
 typedef struct question_answer{
 	char NAME[16];
-	int TYPE;
-	int CLASS;
+	int  TYPE;
+	int  CLASS;
 } question_answer;
 
 typedef struct dns_message{

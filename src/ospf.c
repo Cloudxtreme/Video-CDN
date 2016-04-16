@@ -5,7 +5,7 @@
 
 extern char* lsa_file;
 extern char* servers_file;
-lsa*         lsa_hash = NULL;
+extern lsa*  lsa_hash;
 
 int get_comma_count(char *nbors){
 	int comma_count = 0;

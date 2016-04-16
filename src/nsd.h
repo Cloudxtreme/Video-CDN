@@ -20,5 +20,6 @@
 
 
 void usage();
+void process_inbound_udp(int sock);
 
 #endif

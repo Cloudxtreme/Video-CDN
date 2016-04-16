@@ -5,6 +5,7 @@ bool  rr;
 char* log_file;
 char* servers_file;
 char* lsa_file;
+lsa*  lsa_hash = NULL;
 
 int main(int argc, char* argv[])
 {
@@ -74,16 +75,30 @@ int main(int argc, char* argv[])
       FD_ZERO(&readfds);
       FD_SET(listen_fd, &readfds);
 
-      nfds = select(sock+1, &readfds, NULL, NULL, NULL);
+      nfds = select(listen_fd, &readfds, NULL, NULL, NULL);
 
-      if (nfds > 0)
-        {
-
-        }
-
+      if (FD_ISSET(listen_fd, &readfds))
+        process_inbound_udp(listen_fd);
     }
 
   return EXIT_SUCCESS;
+}
+
+/******************************************************/
+/* @brief Processes an inboud UDP datagram containing */
+/*        a DNS message.                              */
+/*                                                    */
+/* @param sock  The socket to read messages from.     */
+/******************************************************/
+void process_inbound_udp(int sock)
+{
+  #define              BUFLEN         512
+  uint8_t              buf[BUFLEN]  = {0};
+  struct  sockaddr_in  from         = {0};
+
+  recvfrom(sock, buf, BUFLEN, (struct sockaddr *) &from, sizeof(from));
+
+
 }
 
 void usage()
