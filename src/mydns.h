@@ -1,29 +1,40 @@
 #include <netdb.h>
+#define MAX_MESSAGE_SIZE  512
+
+struct byte_buf {
+  uint8_t *buf;
+  int pos;
+  size_t bufsize;
+};
 
 //All these structs are very tentative
 
+
 typedef struct question_answer{
-	char NAME[16];
-	int  TYPE;
-	int  CLASS;
+  uint8_t NAME[2];
+  uint8_t TYPE[2];
+  uint8_t CLASS[2];
 } question_answer;
 
 typedef struct dns_message{
-	int ID;
-	int QR;
-	int Opcode;
-	int AA;
-	int TC;
-	int RD;
-	int RA;
-	int Z;
-	int AD;
-	int CD;
-	int Rcode;
-	int QDCOUNT;
-	int ANCOUNT;
-	int NSCOUNT;
-	int ARCOUNT;
+  uint8_t ID[2];
+  int QR;
+  int OPCODE; //4 bits
+  int AA;
+  int TC;
+  int RD;
+  int RA;
+  int Z;
+  int AD;
+  int CD;
+  int RCODE; //4 bits
+  uint8_t OTHER_HALF[2]; //Second half of first line of DNS message (see the image)
+  uint8_t QDCOUNT[2];
+  uint8_t ANCOUNT[2];
+  uint8_t NSCOUNT[2];
+  uint8_t ARCOUNT[2];
+  question_answer** questions; //Pointers to an array of questions
+  question_answer** answers; //Pointers to an array of answers
 } dns_message;
 
 /**
