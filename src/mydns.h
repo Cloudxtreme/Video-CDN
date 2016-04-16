@@ -1,5 +1,4 @@
 #include <netdb.h>
-
 /**
  * Initialize your client DNS library with the IP address and port number of
  * your DNS server.
@@ -37,5 +36,8 @@ int init_mydns(const char *dns_ip, unsigned int dns_port, const char *local_ip);
  * @return 0 on success, -1 otherwise
  */
 
-int resolve(const char *node, const char *service, 
+int resolve(const char *node, const char *service,
             const struct addrinfo *hints, struct addrinfo **res);
+
+
+void usage();
