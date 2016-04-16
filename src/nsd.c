@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
   fprintf(stdout, "--------Welcome to the fabulous DNS server!------\n");
 
   /* Create a socket for comms */
-  if ((listen_fd = socket(PF_INET, SOCK_STREAM, 0)) == -1)
+  if ((listen_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
       return EXIT_FAILURE;
     }
@@ -65,11 +65,22 @@ int main(int argc, char* argv[])
       return EXIT_FAILURE;
     }
 
-  /* Begin a passive server side listen. */
-  if (listen(listen_fd, 5))
+  /* Prepare for select loop */
+  int nfds;
+  fd_set readfds;
+
+  while(1)
     {
-      close(listen_fd);
-      return EXIT_FAILURE;
+      FD_ZERO(&readfds);
+      FD_SET(listen_fd, &readfds);
+
+      nfds = select(sock+1, &readfds, NULL, NULL, NULL);
+
+      if (nfds > 0)
+        {
+
+        }
+
     }
 
   return EXIT_SUCCESS;
