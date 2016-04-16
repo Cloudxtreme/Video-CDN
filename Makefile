@@ -9,15 +9,19 @@
 CC			= gcc
 CFLAGS 	= -Wall -Wextra -Werror -g -std=gnu99 -lrt
 VPATH 	=	src
-OBJS		= proxy.o logger.o parse.o engine.o
+OBJS		= proxy.o logger.o parse.o engine.o mydns.o
+NSOBJS	= nsd.o 	ospf.o 	pq.o
 
-all: proxy
+all: proxy nameserver
 
 # Implicit .o target
 .c.o:
 	$(CC) -c $(CFLAGS) $<
 
 proxy: $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@
+
+nameserver: $(NSOBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 handin:

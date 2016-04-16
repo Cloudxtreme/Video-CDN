@@ -1,8 +1,23 @@
 #ifndef LISOD_H
 #define LISOD_H
 
-#include <sys/select.h>
-#include <netinet/in.h>
+#include <time.h>
+#include <arpa/inet.h>
+#include <netinet/ip.h>
+#include <stdbool.h>
+#include <signal.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "uthash.h"
 
 #define BUF_SIZE  8192

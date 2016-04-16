@@ -16,25 +16,6 @@
 /* Part of the code is based on the select-based echo server found in
    CSAPP */
 
-#include <time.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <stdbool.h>
-#include <signal.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
 #include "proxy.h"
 #include "logger.h"
 #include "engine.h"

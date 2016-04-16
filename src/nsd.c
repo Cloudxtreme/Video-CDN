@@ -1,6 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#include "nsd.h"
 
 /* Globals */
 bool  rr;
@@ -10,8 +8,8 @@ char* lsa_file;
 
 int main(int argc, char* argv[])
 {
-  char                 *ip, *port;
-  int                  listen_fd;
+  char                 *ip;
+  int                  listen_fd, port;
   struct sockaddr_in   serv_addr, hints;
 
   if (argc == 6)
@@ -63,14 +61,14 @@ int main(int argc, char* argv[])
   /* servers bind sockets to ports---notify the OS they accept connections */
   if (bind(listen_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)))
     {
-      close_socket(listen_fd);
+      close(listen_fd);
       return EXIT_FAILURE;
     }
 
   /* Begin a passive server side listen. */
   if (listen(listen_fd, 5))
     {
-      close_socket(listen_fd);
+      close(listen_fd);
       return EXIT_FAILURE;
     }
 
@@ -79,6 +77,6 @@ int main(int argc, char* argv[])
 
 void usage()
 {
-  printf("Usage: %s [-r] <log> <ip> <port> <servers> <LSAs> \n", argv[0]);
+  printf("Usage: ./nameserver [-r] <log> <ip> <port> <servers> <LSAs> \n");
   exit(1);
 }
