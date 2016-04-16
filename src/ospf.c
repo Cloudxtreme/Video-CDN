@@ -7,6 +7,16 @@ extern char* lsa_file;
 extern char* servers_file;
 lsa*         lsa_hash = NULL;
 
+int get_comma_count(char *nbors){
+	int comma_count = 0;
+	char* line 		= strstr(nbors, ",");
+	while(line != NULL){
+		comma_count++;
+		line = strstr(line+1, ",");
+	}
+	return comma_count;
+}
+
 void is_server(char* IP, lsa* myLSA){
 	FILE* fp = fopen(servers_file, "r");
 	if(fp = NULL) return;
@@ -27,15 +37,10 @@ void is_server(char* IP, lsa* myLSA){
 }
 
 void parse_nbors(lsa* myLSA, char *nbors){
-	int comma_count = 0;
+	int comma_count = get_comma_count(nbors);
 	int token_count = 0;
-
-	char* line 		= strstr(nbors, ",");
+	char* line;
 	char* token;
-	while(line != NULL){
-		comma_count++;
-		line = strstr(line+1, ",");
-	}
 
 	myLSA->num_nbors = comma_count;
 	myLSA->nbors = calloc(1, sizeof(char*));
@@ -84,9 +89,11 @@ void parse_file(){
   /*************************************************************************/
 
 	while((read = getline(&line, &len, fp)) != -1){
+		IP = malloc(MAX_IP_SIZE);
+		nbors = malloc(MAX_IP_SIZE * get_comma_count(line));
 		sscanf(line, "%s %d %s", IP, seq, nbors);
 		temp = calloc(1, sizeof(lsa));
-		temp->sender = IP;
+		strcpy(temp->sender, IP);
 		temp->seq = seq;
 		is_server(IP, temp);
 		parse_nbors(temp, nbors);
@@ -104,7 +111,9 @@ void parse_file(){
 				find->seq = temp->seq;
 			}
 		}
+		free(line);
 	}
+	fclose(fp);
 }
 
 /*********************************************************/
