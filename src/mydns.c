@@ -125,6 +125,12 @@ void delete_bytebuf(struct byte_buf* b)
   free(b);
 }
 
+void mmemtransfer(byte_buf *dest, byte_buf *src, int size){
+	memmove(dest->buf + dest->pos, src->buf + src->pos, size);
+	dest->pos += size;
+	src->pos  += size;
+}
+
 /* @brief Moves <size> bytes, starting from <tempRequest>'s pos argument, into
  *        the argument binaryNumber.
  * @param binaryNumber: Destination buffer. Must be at least <size> bytes.
@@ -186,6 +192,7 @@ void free_dns(dns_message* info){
 
 	if(info->questions != NULL){
 		while(qcount <= 0){
+			free(((info->questions)[qcount])->NAME);
 			free(((info->questions)[qcount]))
 			qcount--;
 		}
@@ -194,6 +201,7 @@ void free_dns(dns_message* info){
 
 	if(info->answers != NULL){
 		while(acount <= 0){
+			free(((info->answers)[acount])->NAME);
 			free(((info->answers)[acount]))
 			acount--;
 		}
@@ -204,15 +212,55 @@ void free_dns(dns_message* info){
 	return;
 }
 
+//0X2E = "."
+//quora = 0 if question, 1 if answer
+void parse_name(byte_buf *temp_message, dns_message* info, int index,
+														  int quora){
+	int total = 1;
+	byte_buf* name_help = create_bytebuf(MAX_MESSAGE_SIZE);
+	uint8_t length[1] = {0};
+	uint8_t period[1] = {0x2E};
+	int length = 0;
+	mmemclear(name_help);
+	
+	mmemmove(length, temp_message, 1);
+	length = binary2int(length, 1);
+
+	while(length != 0){
+		total += length;
+		mmemtransfer(name_help, temp_message, length);
+		mmemcat(name_help, period, 1);
+		memset(length, 0, 1);
+		mmemmove(length, temp_message, 1);
+		length = binary2int(length, 1);
+	}
+
+	if(quora == 0){
+		((info->questions)[index])->name_size = name_help->pos;
+		((info->questions)[index])->NAME = calloc(1, total);
+		length = name_help->pos;
+		name_help->pos = 0;
+		mmemmove(((info->questions)[index])->NAME, name_help, length);
+	} else {
+		((info->answers)[index])->name_size = name_help->pos;
+		((info->answers)[index])->NAME = calloc(1, total);
+		length = name_help->pos;
+		name_help->pos = 0;
+		mmemmove(((info->answers)[index])->NAME, name_help, length);
+	}
+
+	delete_bytebuf(name_help);
+}
+
 //User responsible for freeing info.
 dns_message* parse_message(uint8_t* message){
 	int qd_count;
 	int an_count;
 	int counter = 0;
 	dns_message* info = calloc(1, sizeof(dns_message));
-	byte_buf *temp_message = create_bytebuf(MAX_MESSAGE_SIZE);
-
+	byte_buf* temp_message = create_bytebuf(MAX_MESSAGE_SIZE);
 	mmemclear(temp_message);
+
 	mmemmove(info->ID,   	   temp_message,     2);
     mmemmove(info->OTHER_HALF, temp_message,     2);
     parse_other_half(info->OTHER_HALF, info);
@@ -229,7 +277,7 @@ dns_message* parse_message(uint8_t* message){
     	info->questions = calloc(1, sizeof(question_answer*));
     	while(counter < qd_count){
     		(info->questions)[counter] = calloc(1, sizeof(question_answer));
-    		mmemmove(((info->questions)[counter])->NAME,  temp_message, 2);
+    		parse_name(temp_message, info, counter, 0)
     		mmemmove(((info->questions)[counter])->TYPE,  temp_message, 2);
     		mmemmove(((info->questions)[counter])->CLASS, temp_message, 2);
     		counter++;
@@ -243,7 +291,7 @@ dns_message* parse_message(uint8_t* message){
     	info->answers = malloc(an_count * sizeof(question_answer));
     	while(counter < an_count){
     		(info->answers)[counter] = calloc(1, sizeof(question_answer));
-    		mmemmove(((info->answers)[counter])->NAME, 		 temp_message, 2);
+    		parse_name(temp_message, info, counter, 1)
     		mmemmove(((info->answers)[counter])->TYPE, 		 temp_message, 2);
     		mmemmove(((info->answers)[counter])->CLASS, 	 temp_message, 2);
     		mmemmove(((info->answers)[counter])->TTL, 		 temp_message, 2);
@@ -285,6 +333,7 @@ byte_buf* gen_message(int QR, int OPCODE, int AA, int TC, int AD, int CD,
 	int qcount = QDCOUNT;
 	int acount = ANCOUNT;
 	int counter = 0;
+	int name_size = 0;
 	dns_message* info = calloc(1, sizeof(dns_message)); 
 	byte_buf *temp_message = create_bytebuf(MAX_MESSAGE_SIZE);
 	mmemclear(temp_message);
@@ -316,7 +365,8 @@ byte_buf* gen_message(int QR, int OPCODE, int AA, int TC, int AD, int CD,
 	mmemcat(temp_message, info->ARCOUNT, 	2);
 
 	while(counter < qcount){
-		mmemcat(temp_message, ((info->questions)[counter])->NAME, 	2);
+		name_size = ((info->questions)[counter])->name_size
+		mmemcat(temp_message, ((info->questions)[counter])->NAME, 	name_size);
 		mmemcat(temp_message, ((info->questions)[counter])->TYPE, 	2);
 		mmemcat(temp_message, ((info->questions)[counter])->CLASS, 	2);
 		counter++;
@@ -325,7 +375,8 @@ byte_buf* gen_message(int QR, int OPCODE, int AA, int TC, int AD, int CD,
 	counter = 0;
 
 	while(counter < acount){
-		mmemcat(temp_message, ((info->answers)[counter])->NAME, 	2);
+		name_size = ((info->questions)[counter])->name_size
+		mmemcat(temp_message, ((info->answers)[counter])->NAME, 	name_size);
 		mmemcat(temp_message, ((info->answers)[counter])->TYPE, 	2);
 		mmemcat(temp_message, ((info->answers)[counter])->CLASS, 	2);
 		mmemcat(temp_message, ((info->answers)[counter])->TTL, 		2);

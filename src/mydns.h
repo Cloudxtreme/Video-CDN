@@ -8,13 +8,15 @@ struct byte_buf {
 };
 
 typedef struct question{
-  uint8_t NAME[2];
+  int name_size;
+  uint8_t* NAME;
   uint8_t TYPE[2];
   uint8_t CLASS[2];
 } question;
 
 typedef struct answer{
-  uint8_t NAME[2];
+  int name_size;
+  uint8_t* NAME;
   uint8_t TYPE[2];
   uint8_t CLASS[2];
   uint8_t TTL[2];
