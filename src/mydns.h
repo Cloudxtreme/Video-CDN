@@ -7,9 +7,6 @@ struct byte_buf {
   size_t bufsize;
 };
 
-//All these structs are very tentative
-
-
 typedef struct question_answer{
   uint8_t NAME[2];
   uint8_t TYPE[2];

@@ -1,4 +1,6 @@
 #include "mydns.h"
+#include <time.h>
+#include <stdlib.h>
 
 int init_mydns(const char *dns_ip, unsigned int dns_port, const char *local_ip)
 {
@@ -43,6 +45,48 @@ void hex2binary(char *hex, int len, uint8_t*buf) {
 		buf[i/2] = 	_hex2binary(hex[i]) << 4 
 				| _hex2binary(hex[i+1]);
 	}
+}
+
+/* @brief First converts decimalNumber from decimal to hex. Next, it passes the
+ *        result to the given hex2binary function.
+ * @param decimalNumber: Number to be converted.
+ * @param bytesNeeded: The maximum possible number of hex bytes needed to
+ *        represent the number.
+ * @param binaryNumber: buffer where the binary number is stored
+ */
+void dec2hex2binary(int decimalNumber, int bytesNeeded, uint8_t* binaryNumber){
+
+  int quotient;
+  int i=bytesNeeded-1, temp;
+  char hexadecimalNumber[bytesNeeded];
+  memset(hexadecimalNumber, 0, bytesNeeded);
+  quotient = decimalNumber;
+
+  while(quotient!=0){
+    temp = quotient % 16;
+
+    if(temp < 10){
+      temp = temp + 48;
+    } else {
+      temp = temp + 55;
+    }
+
+    hexadecimalNumber[i] = temp;
+    quotient = quotient / 16;
+    i--;
+  }
+
+  i = 0;
+
+  while(i < bytesNeeded){
+    if(hexadecimalNumber[i] != '\0'){
+      break;
+    }
+    hexadecimalNumber[i] = '0';
+    i++;
+  }
+
+  hex2binary(hexadecimalNumber, bytesNeeded, binaryNumber);
 }
 
 /*******************************************************************************/
@@ -136,6 +180,31 @@ void parse_other_half(uint8_t* other_half, dns_message* info){
 	info->RCODE = other_int & 0xF;
 }
 
+void free_dns(dns_message* info){
+	int qcount = info->QDCOUNT - 1;
+	int acount = info->ANCOUNT - 1;
+
+	if(info->questions != NULL){
+		while(qcount <= 0){
+			free(((info->questions)[qcount]))
+			qcount--;
+		}
+		free(info->questions);
+	}
+
+	if(info->answers != NULL){
+		while(acount <= 0){
+			free(((info->answers)[acount]))
+			acount--;
+		}
+		free(info->answers);
+	}
+
+	free(info);
+	return;
+}
+
+//User responsible for freeing info.
 dns_message* parse_message(uint8_t* message){
 	int qd_count;
 	int an_count;
@@ -185,4 +254,80 @@ dns_message* parse_message(uint8_t* message){
 
     delete_bytebuf(temp_message);
     return info;
+}
+
+//THIS FUNCTION NEEDS SOME TESTING
+void gen_other_half(dns_message* info){
+	int final = (info->QR << 15) | (info->OPCODE << 11) |
+				(info->AA << 10) | (info->TC 	 << 9)  | 
+				(info->RD << 8)  | (info->RA 	 << 7)  | 
+				(info->Z  << 6)  | (info->AD 	 << 5)  |
+				(info->CD << 4)  | (info->OPCODE)  & 0xFF;
+	dec2hex2binary(final, 4, info->OTHER_HALF);
+}
+
+/* I know, we agreed that some of these values should be 0/1 by default,
+ * but I like to be consistent. I take care of any fields explicitly mentioned
+ * in the write-up. The rest is up to you.
+ *
+ * For the question_answer** fields, create an array of allocated questions
+ * and answers. It'll make my life easier...
+ */
+byte_buf* gen_message(int QR, int OPCODE, int AA, int TC, int AD, int CD, 
+			int RCODE, int QDCOUNT, int ANCOUNT, question_answer** questions,
+			question_answer** answers){
+
+	srand(time(NULL));
+	int id = (rand()) & 0xFFFF;
+	int qcount = QDCOUNT;
+	int acount = ANCOUNT;
+	int counter = 0;
+	dns_message* info = calloc(1, sizeof(dns_message)); 
+	byte_buf *temp_message = create_bytebuf(MAX_MESSAGE_SIZE);
+	mmemclear(temp_message);
+
+	dec2hex2binary(id, 4, info->id);
+	info->QR = QR;
+	info->OPCODE = OPCODE;
+	info->AA = AA;
+	info->TC = TC;
+	info->RD = 0;
+	info->RA = 0;
+	info->Z = 0;
+	info->AD = AD;
+	info->CD = CD;
+	info->QDCOUNT = QDCOUNT;
+	info->ANCOUNT = ANCOUNT;
+	info->NSCOUNT = 0;
+	info->ARCOUNT = 0;
+	info->questions = questions;
+	info->answers = answer;
+
+	gen_other_half(info);
+
+	mmemcat(temp_message, info->ID, 		2);
+	mmemcat(temp_message, info->OTHER_HALF, 2);
+	mmemcat(temp_message, info->QDCOUNT, 	2);
+	mmemcat(temp_message, info->ANCOUNT, 	2);
+	mmemcat(temp_message, info->NSCOUNT, 	2);
+	mmemcat(temp_message, info->ARCOUNT, 	2);
+
+	while(counter < qcount){
+		mmemcat(temp_message, ((info->questions)[counter])->NAME, 	2);
+		mmemcat(temp_message, ((info->questions)[counter])->TYPE, 	2);
+		mmemcat(temp_message, ((info->questions)[counter])->CLASS, 	2);
+		counter++;
+	}
+
+	counter = 0;
+
+	while(counter < acount){
+		mmemcat(temp_message, ((info->answers)[counter])->NAME, 	2);
+		mmemcat(temp_message, ((info->answers)[counter])->TYPE, 	2);
+		mmemcat(temp_message, ((info->answers)[counter])->CLASS, 	2);
+		counter++;
+	}
+
+	free_dns(info);
+	return temp_message;
 }
