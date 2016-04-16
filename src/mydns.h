@@ -1,4 +1,31 @@
 #include <netdb.h>
+
+//All these structs are very tentative
+
+typedef struct question_answer{
+	char NAME[16];
+	int TYPE;
+	int CLASS;
+} question_answer;
+
+typedef struct dns_message{
+	int ID;
+	int QR;
+	int Opcode;
+	int AA;
+	int TC;
+	int RD;
+	int RA;
+	int Z;
+	int AD;
+	int CD;
+	int Rcode;
+	int QDCOUNT;
+	int ANCOUNT;
+	int NSCOUNT;
+	int ARCOUNT;
+} dns_message;
+
 /**
  * Initialize your client DNS library with the IP address and port number of
  * your DNS server.
