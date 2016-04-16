@@ -21,7 +21,7 @@ typedef struct answer{
   uint8_t CLASS[2];
   uint8_t TTL[2];
   uint8_t RDLENGTH[2];
-  uint8_t RDATA[2];
+  uint8_t RDATA[4];
 } answer;
 
 typedef struct dns_message{
