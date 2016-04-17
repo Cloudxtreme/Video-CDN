@@ -296,7 +296,7 @@ dns_message* parse_message(uint8_t* message){
     		mmemmove(((info->answers)[counter])->CLASS, 	 temp_message, 2);
     		mmemmove(((info->answers)[counter])->TTL, 		 temp_message, 2);
     		mmemmove(((info->answers)[counter])->RDLENGTH, 	 temp_message, 2);
-    		mmemmove(((info->answers)[counter])->RDATA,		 temp_message, 2);
+    		mmemmove(((info->answers)[counter])->RDATA,		 temp_message, 4);
     		counter++;
     	}
     } else {
@@ -382,7 +382,7 @@ byte_buf* gen_message(int id, int QR, int OPCODE, int AA,
 		mmemcat(temp_message, ((info->answers)[counter])->CLASS, 	2);
 		mmemcat(temp_message, ((info->answers)[counter])->TTL, 		2);
 		mmemcat(temp_message, ((info->answers)[counter])->RDLENGTH, 2);
-		mmemcat(temp_message, ((info->answers)[counter])->RDATA, 	2);
+		mmemcat(temp_message, ((info->answers)[counter])->RDATA, 	4);
 		counter++;
 	}
 
