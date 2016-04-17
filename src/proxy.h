@@ -84,10 +84,15 @@ typedef struct pool {
   int nready;        /* Number of ready descriptors from select */
   int maxi;          /* Max index of clientfd array             */
 
-  int clientfd[FD_SETSIZE];
+  int clientfd[FD_SETSIZE];    /* Array of sockets for each client */
+  fsm*  states[FD_SETSIZE];    /* Array of states for each client */
+  bool dns[FD_SETSIZE];        /* Array of bools indicating whether
+                                  this client is expecting a dns response
+                                  from the server. */
 
   char* freebuf[FREE_SIZE];   // Hold ptrs to any buffer that needs freeing */
-  fsm* states[FD_SETSIZE];    /* Array of states for each client */
+
+
 
 } pool;
 

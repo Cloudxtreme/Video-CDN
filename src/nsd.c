@@ -1,8 +1,13 @@
 #include "nsd.h"
+#include "mydns.h"
 
 /* Globals */
-bool  rr;
+bool   rr;
+size_t rrcount = 0;
+size_t numsrvs = 0;
+
 char* log_file;
+
 char* servers_file;
 char* lsa_file;
 lsa*  lsa_hash = NULL;
@@ -33,6 +38,12 @@ int main(int argc, char* argv[])
     }
   else
     usage();
+
+  /* Count the number of servers */
+  numsrvs = num_server();
+
+  /* Parse the LSAs */
+  parse_file();
 
   signal(SIGPIPE, SIG_IGN);
 
@@ -95,10 +106,57 @@ void process_inbound_udp(int sock)
   #define              BUFLEN         512
   uint8_t              buf[BUFLEN]  = {0};
   struct  sockaddr_in  from         = {0};
+  size_t               n            = 0;
+  question*            query        = NULL;
 
-  recvfrom(sock, buf, BUFLEN, (struct sockaddr *) &from, sizeof(from));
+  n = recvfrom(sock, buf, BUFLEN, (struct sockaddr *) &from, sizeof(from));
 
+  dns_message* msg   = parse_message(buf);
+  query              = msg->questions[0];
 
+  uint8_t iphex[4] = {0};
+
+  if(rr)
+    {
+      lsa* current  = NULL;
+      lsa* temp     = NULL;
+      size_t cntdwn = rrcount;
+
+      HASH_ITER(hh, lsa_hash, current, temp)
+        {
+          if(current->server)
+            {
+              if(!cntdwn)
+                {
+                  /* Select this server */
+                  gen_RDATA(current->sender, iphex);
+                  rrcount = (rrcount + 1) % numsrvs;
+                  break;
+                }
+              cntdwn--;
+            }
+        }
+    }
+  else
+    {
+      lsa* nearest = shortest_path(lsa_hash, (char *) query->NAME);
+
+      /* Select this server */
+      gen_RDATA(nearest->sender, iphex);
+    }
+
+  //@assert strlen(iphex) > 0
+
+  answer* response =
+    gen_answer(query->QNAME, query->name_size + 1, iphex);
+
+    byte_buf* msg2send = gen_message(binary2int(msg->ID, 2), 1, 0, 1,
+                                     0, 0, 0, 0
+                                     1, 1
+                                     msg->questions, &response);
+
+    sendto(sock, msg2send->buf, msg2send->pos, 0,
+           &from, sizeof(from));
 }
 
 void usage()

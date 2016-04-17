@@ -17,6 +17,25 @@ int get_comma_count(char *nbors){
 	return comma_count;
 }
 
+size_t num_server()
+{
+  FILE* fp   = fopen(servers_file, "r");
+  char* line = NULL;
+	size_t len = 0;
+  size_t num = 0;
+
+  if(fp = NULL) return;
+
+  while((read = getline(&line, &len, fp)) != -1)
+    {
+      num++;
+    }
+
+  free(line);
+  close(fp);
+  return num;
+}
+
 void is_server(char* IP, lsa* myLSA){
 	FILE* fp = fopen(servers_file, "r");
 	if(fp = NULL) return;
@@ -141,7 +160,20 @@ lsa* shortest_path(lsa* graph, char* src)
       lsa_info->visited = 1;
 
       /* first server we see, is the nearest server */
-      if(lsa_info->server) return lsa_info;  // cleanup PQ.
+      if(lsa_info->server)
+        {
+          // cleanup PQ.
+
+          lsa* current;
+          lsa* temp;
+
+          HASH_ITER(hh, graph, current, temp)
+            {
+              current->visited = 0;
+            }
+
+          return lsa_info;
+        }
 
       /* Add its neighbors to the PQ. */
       for(size_t i = 0; i < lsa_info->num_nbors; i++)
@@ -154,8 +186,10 @@ lsa* shortest_path(lsa* graph, char* src)
           if(!visitcheck->visited)
             push(h, dist, lsa_info->nbors[i]);
         }
+
+      src  = pop(h);
+      dist++;
     }
 
-  src  = pop(h);
-  dist++;
+  return NULL;
 }

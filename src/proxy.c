@@ -32,6 +32,9 @@ char* dns_ip;
 short dns_port;
 char* www_ip;
 
+bool  dns;
+int   dns_sock;
+
 /* Linkd list of bitrates */
 struct bitrate *all_bitrates = NULL;
 unsigned long long int global_best;
@@ -59,6 +62,11 @@ int main(int argc, char* argv[])
       return EXIT_FAILURE;
     }
 
+  if (argc == 7)
+    dns = true;
+  else
+    dns = false;
+
   /* Ignore SIGPIPE */
   signal(SIGPIPE, SIG_IGN);
 
@@ -75,7 +83,8 @@ int main(int argc, char* argv[])
   fake_ip           = argv[4];
   dns_ip            = argv[5];
   dns_port          = atoi(argv[6]);
-  if(argc == 8)     www_ip = argv[7];
+  if(argc == 8)
+    www_ip          = argv[7];
 
   int                 listen_fd, client_fd;
   socklen_t           cli_size;
@@ -125,6 +134,19 @@ int main(int argc, char* argv[])
       close_socket(listen_fd);
       return EXIT_FAILURE;
     }
+
+  /* Create a UDP socket for dns comms */
+  if ((dns_sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+    {
+      return EXIT_FAILURE;
+    }
+
+  /***************************************************/
+  /* struct sockaddr_in dnsaddr = {0};               */
+  /* dnsaddr.sin_family         = AF_INET;           */
+  /* dnsaddr.sin_addr.s_addr    = inet_addr(dns_ip); */
+  /* dnsaddr.sin_port           = htons(dns_port);   */
+  /***************************************************/
 
   /* Initialize our pool of fds */
   init_pool(listen_fd, pool);
@@ -186,7 +208,7 @@ void init_pool(int listenfd, pool *p)
   p->maxi = -1;
 
   memset(p->clientfd, -1, FD_SETSIZE*sizeof(int)); // No clients at the moment.
-  //memset(p->data,      0, FD_SETSIZE*BUF_SIZE*sizeof(char)); // No data yet.
+  memset(p->dns,       false,  FD_SETSIZE*sizeof(bool)); // No dns yet.
   memset(p->states,    0, FD_SETSIZE*sizeof(fsm*)); // NULL out the fsms.
 
   /* Initailly, listenfd and https_fd are the only members of the read set */
@@ -226,7 +248,10 @@ void add_client(int client_fd, pool *p)
   state->conn       = 1;
   bzero(state->serv_ip, INET_ADDRSTRLEN);
 
-  connect_server(state);
+  if(!dns)
+    connect_server(state);
+  else
+    dns_send_query(state);
 
   memset(state->freebuf, 0, FREE_SIZE*sizeof(char*));
 
@@ -241,6 +266,9 @@ void add_client(int client_fd, pool *p)
 
         /* Add fsm to pool */
         p->states[i] = state;
+
+        /* Expecting DNS response */
+        p->dns[i]    = true;
 
         /* Update max descriptor and max index */
         if (client_fd > p->maxfd)
@@ -617,6 +645,11 @@ sigchld_handler(int sig)
   return;
 }
 
+void dns_query()
+{
+
+}
+
 /************************************************************/
 /* @brief Connects to the webserver that has the videos.    */
 /* @param state - The state of the client behind the proxy. */
@@ -628,9 +661,9 @@ int connect_server(fsm* state)
   struct addrinfo *servinfo; //will point to the results
 
   memset(&hints, 0, sizeof (hints));
-  hints.ai_family = AF_UNSPEC;  //don't care IPv4 or IPv6
+  hints.ai_family = AF_UNSPEC;     //don't care IPv4 or IPv6
   hints.ai_socktype = SOCK_STREAM; //TCP stream sockets
-  hints.ai_flags = AI_PASSIVE; //fill in my IP for me
+  hints.ai_flags = AI_PASSIVE;     //fill in my IP for me
 
   /* Bind the fake IP to the socket */
 

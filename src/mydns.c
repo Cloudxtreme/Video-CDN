@@ -14,7 +14,7 @@ int resolve(const char *node, const char *service,
 }
 
 /**
- * converts the binary char string str to ascii format. the length of 
+ * converts the binary char string str to ascii format. the length of
  * ascii should be 2 times that of str
  */
 void binary2hex(uint8_t *buf, int len, char *hex) {
@@ -24,7 +24,7 @@ void binary2hex(uint8_t *buf, int len, char *hex) {
 	}
 	hex[len*2] = 0;
 }
-  
+
 /**
  *Ascii to hex conversion routine
  */
@@ -42,7 +42,7 @@ static uint8_t _hex2binary(char hex)
 void hex2binary(char *hex, int len, uint8_t*buf) {
 	int i = 0;
 	for(i=0;i<len;i+=2) {
-		buf[i/2] = 	_hex2binary(hex[i]) << 4 
+		buf[i/2] = 	_hex2binary(hex[i]) << 4
 				| _hex2binary(hex[i+1]);
 	}
 }
@@ -98,10 +98,10 @@ void dec2hex2binary(int decimalNumber, int bytesNeeded, uint8_t* binaryNumber){
 struct byte_buf* create_bytebuf(size_t bufsize)
 {
   struct byte_buf *b;
-  b = malloc(sizeof(struct byte_buf));
+  b = calloc(1, sizeof(struct byte_buf));
   if (!b) return NULL;
 
-  b->buf = malloc(bufsize + 1);
+  b->buf = calloc(1, bufsize + 1);
   if (!b->buf) {
     free(b);
     return NULL;
@@ -176,7 +176,7 @@ void parse_other_half(uint8_t* other_half, dns_message* info){
 	int other_int = binary2int(other_half);
 	info->QR = other_int & 0x8000;
 	info->OPCODE = other_int & 0x7800;
-	info->AA = other_int & 0x400; 
+	info->AA = other_int & 0x400;
 	info->TC = other_int & 0x200;
 	info->RD = other_int & 0x100; //Always 0
 	info->RA = other_int & 0x80; //Always 0
@@ -222,7 +222,7 @@ void parse_name(byte_buf *temp_message, dns_message* info, int index,
 	uint8_t period[1] = {0x2E};
 	int length = 0;
 	mmemclear(name_help);
-	
+
 	mmemmove(length, temp_message, 1);
 	length = binary2int(length, 1);
 
@@ -262,14 +262,14 @@ dns_message* parse_message(uint8_t* message){
 	mmemclear(temp_message);
 
 	mmemmove(info->ID,   	   temp_message,     2);
-    mmemmove(info->OTHER_HALF, temp_message,     2);
-    parse_other_half(info->OTHER_HALF, info);
-    mmemmove(info->QDCOUNT,    temp_message,     2);
-    mmemmove(info->ANCOUNT,    temp_message,     2);
-    mmemmove(info->NSCOUNT,    temp_message,     2);
-    mmemmove(info->ARCOUNT,    temp_message,     2);
+  mmemmove(info->OTHER_HALF, temp_message,     2);
+  parse_other_half(info->OTHER_HALF, info);
+  mmemmove(info->QDCOUNT,    temp_message,     2);
+  mmemmove(info->ANCOUNT,    temp_message,     2);
+  mmemmove(info->NSCOUNT,    temp_message,     2);
+  mmemmove(info->ARCOUNT,    temp_message,     2);
 
-    qd_count = binary2int(info->QDCOUNT, 2);
+  qd_count = binary2int(info->QDCOUNT, 2);
     an_count = binary2int(info->ANCOUNT, 2);
 
     //TYPE and CLASS are always 1, but for the sake of generality.
@@ -310,8 +310,8 @@ dns_message* parse_message(uint8_t* message){
 //THIS FUNCTION NEEDS SOME TESTING
 void gen_other_half(dns_message* info){
 	int final = (info->QR << 15) | (info->OPCODE << 11) |
-				(info->AA << 10) | (info->TC 	 << 9)  | 
-				(info->RD << 8)  | (info->RA 	 << 7)  | 
+				(info->AA << 10) | (info->TC 	 << 9)  |
+				(info->RD << 8)  | (info->RA 	 << 7)  |
 				(info->Z  << 6)  | (info->AD 	 << 5)  |
 				(info->CD << 4)  | (info->OPCODE)  & 0xFF;
 	dec2hex2binary(final, 4, info->OTHER_HALF);
@@ -321,20 +321,21 @@ void gen_other_half(dns_message* info){
  * but I like to be consistent. I take care of any fields explicitly mentioned
  * in the write-up. The rest is up to you.
  *
- * For the question_answer** fields, create an array of allocated questions
+ * For the question/answer** fields, create an array of allocated questions
  * and answers. It'll make my life easier...
  */
-byte_buf* gen_message(int QR, int OPCODE, int AA, int TC, int AD, int CD, 
-			int RCODE, int QDCOUNT, int ANCOUNT, question** questions,
-			answer** answers){
+byte_buf* gen_message(int id, int QR, int OPCODE, int AA,
+                      int TC, int AD, int CD, int RCODE,
+                      int QDCOUNT, int ANCOUNT,
+                      question** questions, answer** answers)
+{
 
-	srand(time(NULL));
-	int id = (rand()) & 0xFFFF;
-	int qcount = QDCOUNT;
-	int acount = ANCOUNT;
-	int counter = 0;
-	int name_size = 0;
-	dns_message* info = calloc(1, sizeof(dns_message)); 
+	int qcount     = QDCOUNT;
+	int acount     = ANCOUNT;
+	int counter    = 0;
+	int name_size  = 0;
+
+	dns_message* info = calloc(1, sizeof(dns_message));
 	byte_buf *temp_message = create_bytebuf(MAX_MESSAGE_SIZE);
 	mmemclear(temp_message);
 
@@ -387,4 +388,125 @@ byte_buf* gen_message(int QR, int OPCODE, int AA, int TC, int AD, int CD,
 
 	free_dns(info);
 	return temp_message;
+}
+
+
+
+/*****************************************************************/
+/* @brief Generate an array of questions of the form             */
+/*        "<size> <data>" for each label.                        */
+/* @param name The name to generate question for.                */
+/* @param len  The length of the name.                           */
+/*                                                               */
+/* @returns A null terminated bytebuf. Make sure to free outside */
+/*          the function.                                        */
+/*                                                               */
+/* @notes   Copy strlen(bytebuf->buf) + 1 from the bytebuf into  */
+/*          a uint8_t array to obtain the QNAME field.           */
+/*****************************************************************/
+byte_buf* gen_QNAME(char* name, size_t len)
+{
+  char* word = NULL;
+  uint8_t label_len;
+  byte_buf* label = create_bytebuf(2 * strlen(name));
+
+  /******************************************************/
+  /* Example DNS question:                              */
+  /*   "video.cs.cmu.edu"                               */
+  /*                                                    */
+  /*  DNS question in bytes:                            */
+  /*    "0x5 v i d e o 0x2 c s 0x3 c m u 0x3 e d u 0x0" */
+  /*  where the letters are in ascii hex                */
+  /******************************************************/
+
+  /* First, split the string into tokens delimited by period. */
+  word = strtok(name, ".");
+
+  while(word)
+    {
+      //@assert strlen(word) <= 255;
+      label_len = (uint8_t) strlen(word);
+      mmemcat(label, &label_len, 1);
+      mmemcat(label, word, strlen(word));
+
+      word = strtok(NULL, ".");
+    }
+
+  return label;
+}
+
+/**************************************************************/
+/* @brief Generate an RDATA field given an ip in string form. */
+/* @param ip  The ip in string form.                          */
+/* @param len The length of the string.                       */
+/* @param ans The buffer containing the answer.               */
+/*                                                            */
+/* @returns   Populates the ans buffer.                       */
+/**************************************************************/
+void gen_RDATA(char* ip, uint8_t* ans)
+{
+  //@assert size(ans) == 4 bytes.
+  //@assert ip is in dotted decimal.
+
+  in_addr_t          iphex; // unsigned 32-bit.
+
+  iphex = inet_addr(ip);
+
+  dec2hex2binary((int) iphex, 4, ans);
+}
+
+/******************************************************************/
+/* @brief Generate a question struct with the given parameters.   */
+/* @param QNAME      The QNAME in the label format.               */
+/* @param QNAME_len  The length of the QNAME buffer.              */
+/*                                                                */
+/* @returns A pointer to a question struct. Make sure to free.    */
+/******************************************************************/
+question* gen_question(uint8_t* QNAME, size_t QNAME_len)
+{
+  //@assert QNAME is malloced.
+  //@assert QNAME_len == strlen(QNAME) + 1
+  //@assert QNAME_len must include 0x0 byte.
+
+  question* q = calloc(1, sizeof(struct question));
+
+  q->name_size = (int) QNAME_len - 1;
+  q->NAME      = calloc(1, QNAME_len);
+  memcpy(q->NAME, NAME, QNAME_len); // make sure to copy the 0x0
+  q->TYPE[1]   = 1;
+  q->CLASS[1]  = 1;
+
+  return q;
+}
+
+
+/************************************************************************/
+/* @brief  Generates an answer struct given the appropriate parameters. */
+/*                                                                      */
+/* @param  NAME      The domain name that was queried.                  */
+/* @param  NAME_len  The length of the NAME field.                      */
+/* @param  RDATA     The data of the response.                          */
+/* @param  RDLENGTH  By default, this should be 4 (bytes).              */
+/*                                                                      */
+/* @returns A pointer to an answer struct. Make sure to free.           */
+/************************************************************************/
+answer* gen_answer(uint8_t* NAME, size_T NAME_len,
+                   uint8_t* RDATA)
+{
+  //@assert length(RDATA) == 4 bytes.
+  //@assert strlen(NAME) + 1 == NAME_len.
+  //@assert NAME must include 0x0 byte at the end.
+
+  answer* a = calloc(1, sizeof(struct answer));
+
+  a->name_size = (int) NAME_len - 1;
+  a->NAME      = calloc(1, NAME_len);
+  memcpy(a->NAME, NAME, NAME_len);
+  a->TYPE[1]         = 1;
+  a->CLASS[1]        = 1;
+  a->TTL[1]          = 0;
+  a->RDLENGTH[1]     = 4;
+  memcpy(a->RDATA, RDATA, 4);
+
+  return a;
 }
