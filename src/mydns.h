@@ -1,7 +1,13 @@
 #include <netdb.h>
+#include <time.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdio.h>
+
 #define MAX_MESSAGE_SIZE  512
 
-struct byte_buf {
+typedef struct byte_buf {
   uint8_t *buf;
   int pos;
   size_t bufsize;
