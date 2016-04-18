@@ -157,6 +157,10 @@ void process_inbound_udp(int sock)
 
     sendto(sock, msg2send->buf, msg2send->pos, 0,
            &from, sizeof(from));
+
+    //free_answer(response);
+    free_dns(msg);
+    delete_bytebuf(msg2send);
 }
 
 void usage()

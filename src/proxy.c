@@ -42,12 +42,12 @@ unsigned long long int global_best;
 /** Prototypes **/
 
 int  close_socket(int sock);
-void init_pool(int listenfd, pool *p);
+void init_pool(int listenfd, int dns_sock, pool *p);
 void add_client(int client_fd, pool *p);
-void check_clients(pool *p);
+void check_clients(pool *p, int dns_sock);
 void cleanup(int sig);
 void sigchld_handler(int sig);
-int connect_server(fsm* state);
+int connect_server(fsm* state, char* webip, in_addr_t dnsip)
 
 /** Definitions **/
 
@@ -142,6 +142,8 @@ int main(int argc, char* argv[])
     }
 
   /***************************************************/
+  /* Use this to talk to the DNS server:             */
+  /*                                                 */
   /* struct sockaddr_in dnsaddr = {0};               */
   /* dnsaddr.sin_family         = AF_INET;           */
   /* dnsaddr.sin_addr.s_addr    = inet_addr(dns_ip); */
@@ -149,7 +151,7 @@ int main(int argc, char* argv[])
   /***************************************************/
 
   /* Initialize our pool of fds */
-  init_pool(listen_fd, pool);
+  init_pool(listen_fd, dns_sock, pool);
 
   /******** END INIT *********/
 
@@ -201,9 +203,10 @@ int close_socket(int sock)
  * @brief Initializes the pool struct so that it contains only the listenfd
  *
  * @param listenfd The socket for listening for new connections.
- * @paran p        The pool struct to initialize.
+ * @param dns_sock The DNS server socket.
+ * @param p        The pool struct to initialize.
  */
-void init_pool(int listenfd, pool *p)
+void init_pool(int listenfd, int dns_sock, pool *p)
 {
   p->maxi = -1;
 
@@ -211,10 +214,11 @@ void init_pool(int listenfd, pool *p)
   memset(p->dns,       false,  FD_SETSIZE*sizeof(bool)); // No dns yet.
   memset(p->states,    0, FD_SETSIZE*sizeof(fsm*)); // NULL out the fsms.
 
-  /* Initailly, listenfd and https_fd are the only members of the read set */
-  p->maxfd = listenfd;
+  /* Initailly, listenfd and dns_sock are the only members of the read set */
+  p->maxfd = dns_sock;
   FD_ZERO(&p->masterfds);
   FD_SET(listenfd, &p->masterfds);
+  FD_SET(dns_sock, &p->masterfds);
 }
 
 /*
@@ -249,9 +253,9 @@ void add_client(int client_fd, pool *p)
   bzero(state->serv_ip, INET_ADDRSTRLEN);
 
   if(!dns)
-    connect_server(state);
+    connect_server(state, www_ip, 0);
   else
-    dns_send_query(state);
+    resolve("video.cs.cmu.edu", "8080", NULL, NULL);
 
   memset(state->freebuf, 0, FREE_SIZE*sizeof(char*));
 
@@ -300,9 +304,10 @@ void add_client(int client_fd, pool *p)
 /* writing, reads a request. Never blocks for a                      */
 /* single user.                                                      */
 /*                                                                   */
-/* @param p The pool of clients to iterate through.                  */
+/* @param p The pool of clients to iterate through.
+   @param dns_sock The DNS server socket
 /*********************************************************************/
-void check_clients(pool *p)
+void check_clients(pool *p, int dns_sock)
 {
   int i, client_fd, n, error;
   fsm* state;
@@ -317,7 +322,44 @@ void check_clients(pool *p)
       if((client_fd = p->clientfd[i]) <= 0)
         continue;
 
-      state     = p->states[i];
+      state  = p->states[i];
+
+      /* Are we using DNS ? */
+      if(dns)
+        {
+          /* Check if there is a 'requested' DNS response for this socket */
+          if(FD_ISSET(dns_sock, &p->readfds) && p->dns[i])
+            {
+              /* Read DNS response,
+                 parse
+                 extract IP
+                 save as serv IP
+              */
+              #define              BUFLEN         512
+              uint8_t              buf[BUFLEN]  = {0};
+              struct  sockaddr_in  from         = {0};
+              size_t               n            = 0;
+              answer*              reply        = NULL;
+
+              recvfrom(dns_sock, buf, BUFLEN,
+                       (struct sockaddr *) &from, sizeof(from));
+
+              dns_message* msg = parse_message(buf);
+              reply            = msg->answers[0];
+
+              in_addr_t ip     = (in_addr_t) binary2int(reply->RDATA, 4);
+
+              connect_server(state, NULL, ip);
+
+              /* Not requesting DNS anymore...*/
+              p->dns[i] = false;
+            }
+          /* DNS requested but never came...*/
+          else if(p->dns[i])
+            continue;
+
+          /* DNS requested and received, proceed. */
+        }
 
       /* If a descriptor is ready to be read, read a line from it */
       if (client_fd > 0 && FD_ISSET(client_fd, &p->readfds))
@@ -645,16 +687,11 @@ sigchld_handler(int sig)
   return;
 }
 
-void dns_query()
-{
-
-}
-
 /************************************************************/
 /* @brief Connects to the webserver that has the videos.    */
 /* @param state - The state of the client behind the proxy. */
 /************************************************************/
-int connect_server(fsm* state)
+int connect_server(fsm* state, char* webip, in_addr_t dnsip)
 {
   int status, sock;
   struct addrinfo hints; struct sockaddr_in fake;
@@ -672,10 +709,25 @@ int connect_server(fsm* state)
   fake.sin_addr.s_addr = inet_addr(fake_ip);
   fake.sin_port        = 0;
 
-  if ((status = getaddrinfo(www_ip, "8080", &hints, &servinfo)) != 0)
+  /* Connect to the www_ip. */
+  if(webip)
     {
-      fprintf(stderr, "getaddrinfo error: %s \n", gai_strerror(status));
-      return EXIT_FAILURE;
+      if ((status = getaddrinfo(webip, "8080", &hints, &servinfo)) != 0)
+        {
+          fprintf(stderr, "getaddrinfo error: %s \n", gai_strerror(status));
+          return EXIT_FAILURE;
+        }
+    }
+  /* connect to the ip retrieved from the dns request */
+  else
+    {
+      struct sockaddr_in serv = {0};
+
+      serv.sin_family      = AF_INET;
+      serv.sin_port        = 8080;
+      serv.sin_addr.s_addr = htonl(dnsip);
+
+      servinfo             = &serv;
     }
 
   if((sock = socket(servinfo->ai_family, servinfo->ai_socktype,
@@ -684,6 +736,7 @@ int connect_server(fsm* state)
       fprintf(stderr, "Socket failed");
       return EXIT_FAILURE;
     }
+
 
   /* Bind this socket to the fake-ip with an ephemeral port */
   bind(sock, (struct sockaddr *) &fake, sizeof(fake));
@@ -697,9 +750,14 @@ int connect_server(fsm* state)
   /* We now have a unique connection established for this client */
   state->servfd = sock;
   state->servst = calloc(sizeof(struct serv_rep), 1);
-  strncpy(state->serv_ip, www_ip, INET_ADDRSTRLEN);
 
-  freeaddrinfo(servinfo);
+  if(webip)
+    strncpy(state->serv_ip, webip, INET_ADDRSTRLEN);
+  else
+    strncpy(state->serv_ip, inet_ntoa(servinfo->sin_addr), INET_ADDRSTRLEN);
+
+  if(webip)
+    freeaddrinfo(servinfo);
 
   return EXIT_SUCCESS;
 }

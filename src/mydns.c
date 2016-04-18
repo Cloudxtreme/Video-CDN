@@ -10,6 +10,30 @@ int init_mydns(const char *dns_ip, unsigned int dns_port, const char *local_ip)
 int resolve(const char *node, const char *service,
             const struct addrinfo *hints, struct addrinfo **res)
 {
+  struct sockaddr_in dns_addr;
+
+  bzero(&dns_addr, sizeof(dns_addr));
+  dns_addr.sin_family  = AF_UNSPEC;
+  dns_addr.sin_port    = htons(dns_port);
+  dns_addr.sin_addr.s_addr = inet_addr(dns_ip);
+
+  byte_buf* QNAME_bb = gen_QNAME(node, strlen(node));
+  question* query    = gen_question(QNAME_bb->buf, strlen(QNAME_bb->buf) + 1);
+
+  srand(time(NULL));
+
+  byte_buf* msg2send = gen_message(rand(), 0, 0, 0, 0,
+                                   0, 0, 0,
+                                   1, 0,
+                                   &query, NULL);
+
+  sendto(sock, msg2send->buf, msg2send->pos, 0,
+         &dns_addr, sizeof(dns_addr));
+
+  free(query->NAME);
+  free(query);
+  delete_bytebuf(msg2send);
+  delete_bytebuf(QNAME_bb);
   return 0;
 }
 
@@ -261,7 +285,7 @@ dns_message* parse_message(uint8_t* message){
 	byte_buf* temp_message = create_bytebuf(MAX_MESSAGE_SIZE);
 	mmemclear(temp_message);
 
-	mmemmove(info->ID,   	   temp_message,     2);
+	mmemmove(info->ID,   	     temp_message,     2);
   mmemmove(info->OTHER_HALF, temp_message,     2);
   parse_other_half(info->OTHER_HALF, info);
   mmemmove(info->QDCOUNT,    temp_message,     2);
