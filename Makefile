@@ -12,7 +12,7 @@ VPATH 	=	src
 OBJS		= proxy.o logger.o parse.o engine.o mydns.o
 NSOBJS	= nsd.o 	ospf.o 	pq.o     mydns.o
 
-all: proxy nameserver
+all: proxy nameserver cleanobj
 
 # Implicit .o target
 .c.o:
@@ -39,4 +39,7 @@ echo_client:
 .PHONY: all clean
 
 clean:
-	rm -f *~ *.o *.tar proxy
+	rm -f *~ *.o *.tar proxy nameserver
+
+cleanobj:
+	rm *.o

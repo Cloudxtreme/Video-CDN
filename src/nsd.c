@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 {
   char                 *ip;
   int                  listen_fd, port;
-  struct sockaddr_in   serv_addr, hints;
+  struct sockaddr_in   serv_addr;
 
   if (argc == 6)
     {
@@ -78,7 +78,6 @@ int main(int argc, char* argv[])
     }
 
   /* Prepare for select loop */
-  int nfds;
   fd_set readfds;
 
   while(1)
@@ -86,7 +85,7 @@ int main(int argc, char* argv[])
       FD_ZERO(&readfds);
       FD_SET(listen_fd, &readfds);
 
-      nfds = select(listen_fd, &readfds, NULL, NULL, NULL);
+      select(listen_fd, &readfds, NULL, NULL, NULL);
 
       if (FD_ISSET(listen_fd, &readfds))
         process_inbound_udp(listen_fd);
@@ -107,10 +106,9 @@ void process_inbound_udp(int sock)
   uint8_t              buf[BUFLEN]  = {0};
   struct  sockaddr_in  from         = {0};
   socklen_t            fromlen      = sizeof(from);
-  size_t               n            = 0;
   question*            query        = NULL;
 
-  n = recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
+  recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
 
   dns_message* msg   = parse_message(buf);
   query              = msg->questions[0];
@@ -161,7 +159,7 @@ void process_inbound_udp(int sock)
                          msg->questions, dumresponse);
 
   sendto(sock, msg2send->buf, msg2send->pos, 0,
-         &from, sizeof(from));
+         (struct sockaddr *) &from, sizeof(from));
 
   //free_answer(response);
   free_dns(msg);

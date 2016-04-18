@@ -4,14 +4,13 @@ extern char* dns_ip;
 extern short dns_port;
 extern int   dns_sock;
 
-int init_mydns(const char *dns_ip, unsigned int dns_port, const char *local_ip)
-{
-  return 0;
-}
-
 int resolve(char *node, char *service,
             const struct addrinfo *hints, struct addrinfo **res)
 {
+  (void) hints;
+  (void) res;
+  (void) service;
+
   struct sockaddr_in dns_addr;
 
   bzero(&dns_addr, sizeof(dns_addr));
@@ -20,7 +19,7 @@ int resolve(char *node, char *service,
   dns_addr.sin_addr.s_addr = inet_addr(dns_ip);
 
   byte_buf* QNAME_bb = gen_QNAME(node, strlen(node));
-  question* query    = gen_question(QNAME_bb->buf, strlen(QNAME_bb->buf) + 1);
+  question* query    = gen_question(QNAME_bb->buf, strlen((char *) QNAME_bb->buf) + 1);
 
   question** dumquery = calloc(1, sizeof(question*));
   dumquery[0]         = query;
@@ -458,6 +457,7 @@ byte_buf* gen_QNAME(char* name, size_t len)
   char* word = NULL;
   uint8_t label_len;
   byte_buf* label = create_bytebuf(2 * strlen(name));
+  (void) len;
 
   /******************************************************/
   /* Example DNS question:                              */
@@ -476,7 +476,7 @@ byte_buf* gen_QNAME(char* name, size_t len)
       //@assert strlen(word) <= 255;
       label_len = (uint8_t) strlen(word);
       mmemcat(label, &label_len, 1);
-      mmemcat(label, word, strlen(word));
+      mmemcat(label, (uint8_t *) word, strlen(word));
 
       word = strtok(NULL, ".");
     }
