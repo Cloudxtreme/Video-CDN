@@ -150,17 +150,20 @@ void process_inbound_udp(int sock)
   answer* response =
     gen_answer(query->QNAME, query->name_size + 1, iphex);
 
-    byte_buf* msg2send = gen_message(binary2int(msg->ID, 2), 1, 0, 1,
-                                     0, 0, 0, 0
-                                     1, 1
-                                     msg->questions, &response);
+  answer** dumresponse = calloc(1, sizeof(answer*));
+  dumresponse[0] = response;
 
-    sendto(sock, msg2send->buf, msg2send->pos, 0,
-           &from, sizeof(from));
+  byte_buf* msg2send = gen_message(binary2int(msg->ID, 2), 1, 0, 1,
+                                   0, 0, 0, 0
+                                   1, 1
+                                   msg->questions, dumresponse);
 
-    //free_answer(response);
-    free_dns(msg);
-    delete_bytebuf(msg2send);
+  sendto(sock, msg2send->buf, msg2send->pos, 0,
+         &from, sizeof(from));
+
+  //free_answer(response);
+  free_dns(msg);
+  delete_bytebuf(msg2send);
 }
 
 void usage()

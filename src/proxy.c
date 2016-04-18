@@ -330,11 +330,6 @@ void check_clients(pool *p, int dns_sock)
           /* Check if there is a 'requested' DNS response for this socket */
           if(FD_ISSET(dns_sock, &p->readfds) && p->dns[i])
             {
-              /* Read DNS response,
-                 parse
-                 extract IP
-                 save as serv IP
-              */
               #define              BUFLEN         512
               uint8_t              buf[BUFLEN]  = {0};
               struct  sockaddr_in  from         = {0};
@@ -350,6 +345,9 @@ void check_clients(pool *p, int dns_sock)
               in_addr_t ip     = (in_addr_t) binary2int(reply->RDATA, 4);
 
               connect_server(state, NULL, ip);
+
+              /* Free memory */
+              free_dns(msg);
 
               /* Not requesting DNS anymore...*/
               p->dns[i] = false;

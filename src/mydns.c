@@ -20,12 +20,15 @@ int resolve(const char *node, const char *service,
   byte_buf* QNAME_bb = gen_QNAME(node, strlen(node));
   question* query    = gen_question(QNAME_bb->buf, strlen(QNAME_bb->buf) + 1);
 
+  question** dumquery = calloc(1, sizeof(question*));
+  dumquery[0]         = query;
+
   srand(time(NULL));
 
   byte_buf* msg2send = gen_message(rand(), 0, 0, 0, 0,
                                    0, 0, 0,
                                    1, 0,
-                                   &query, NULL);
+                                   dumquery, NULL);
 
   sendto(sock, msg2send->buf, msg2send->pos, 0,
          &dns_addr, sizeof(dns_addr));
