@@ -18,6 +18,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "uthash.h"
+#include "ospf.h"
+#include "mydns.h"
 
 void usage();
 void process_inbound_udp(int sock);

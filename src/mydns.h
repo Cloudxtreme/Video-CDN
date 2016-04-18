@@ -5,7 +5,7 @@ struct byte_buf {
   uint8_t *buf;
   int pos;
   size_t bufsize;
-};
+} byte_buf;
 
 typedef struct question{
   int name_size;
@@ -88,15 +88,16 @@ int resolve(const char *node, const char *service,
 
 void usage();
 dns_message* parse_message(uint8_t* message);
-byte_buf* gen_message(int id, int QR, int OPCODE, int AA, int TC,
+struct byte_buf* gen_message(int id, int QR, int OPCODE, int AA, int TC,
                       int AD, int CD, int RCODE,
                       int QDCOUNT, int ANCOUNT,
                       question** questions, answer** answers);
 
-byte_buf* gen_QNAME(char* name, size_t len);
+struct byte_buf* gen_QNAME(char* name, size_t len);
 void      gen_RDATA(char* ip, uint8_t* ans);
 question* gen_question(uint8_t* QNAME, size_t QNAME_len);
 answer*   gen_answer(uint8_t* NAME, size_t NAME_len,
                      uint8_t* RDATA);
 
 void free_dns(dns_message* info);
+int binary2int(uint8_t *buf, int len);

@@ -1,5 +1,5 @@
 #include "nsd.h"
-#include "mydns.h"
+
 
 /* Globals */
 bool   rr;
@@ -106,10 +106,11 @@ void process_inbound_udp(int sock)
   #define              BUFLEN         512
   uint8_t              buf[BUFLEN]  = {0};
   struct  sockaddr_in  from         = {0};
+  socklen_t            fromlen      = sizeof(from);
   size_t               n            = 0;
   question*            query        = NULL;
 
-  n = recvfrom(sock, buf, BUFLEN, (struct sockaddr *) &from, sizeof(from));
+  n = recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
 
   dns_message* msg   = parse_message(buf);
   query              = msg->questions[0];
@@ -148,15 +149,16 @@ void process_inbound_udp(int sock)
   //@assert strlen(iphex) > 0
 
   answer* response =
-    gen_answer(query->QNAME, query->name_size + 1, iphex);
+    gen_answer(query->NAME, query->name_size + 1, iphex);
 
   answer** dumresponse = calloc(1, sizeof(answer*));
   dumresponse[0] = response;
 
-  byte_buf* msg2send = gen_message(binary2int(msg->ID, 2), 1, 0, 1,
-                                   0, 0, 0, 0
-                                   1, 1
-                                   msg->questions, dumresponse);
+  struct byte_buf* msg2send;
+  msg2send = gen_message(binary2int(msg->ID, 2), 1, 0, 1,
+                         0, 0, 0, 0,
+                         1, 1,
+                         msg->questions, dumresponse);
 
   sendto(sock, msg2send->buf, msg2send->pos, 0,
          &from, sizeof(from));

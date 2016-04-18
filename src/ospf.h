@@ -20,5 +20,7 @@ typedef struct lsa{
 } lsa;
 
 lsa* shortest_path(lsa* graph, char* src);
+size_t num_server();
+void   parse_file();
 
 #endif
