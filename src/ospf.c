@@ -1,7 +1,4 @@
 #include "ospf.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 extern char* lsa_file;
 extern char* servers_file;
@@ -21,10 +18,11 @@ size_t num_server()
 {
   FILE* fp   = fopen(servers_file, "r");
   char* line = NULL;
-	size_t len = 0;
+  size_t len = 0;
   size_t num = 0;
+  ssize_t read;
 
-  if(fp = NULL) return;
+  if(fp == NULL) return 0;
 
   while((read = getline(&line, &len, fp)) != -1)
     {
@@ -32,13 +30,13 @@ size_t num_server()
     }
 
   free(line);
-  close(fp);
+  fclose(fp);
   return num;
 }
 
 void is_server(char* IP, lsa* myLSA){
 	FILE* fp = fopen(servers_file, "r");
-	if(fp = NULL) return;
+	if(fp == NULL) return;
 
 	char* found = NULL;
 	char* line = NULL;
@@ -58,7 +56,6 @@ void is_server(char* IP, lsa* myLSA){
 void parse_nbors(lsa* myLSA, char *nbors){
 	int comma_count = get_comma_count(nbors);
 	int token_count = 0;
-	char* line;
 	char* token;
 
 	myLSA->num_nbors = comma_count;
@@ -78,7 +75,7 @@ void parse_nbors(lsa* myLSA, char *nbors){
 
 void parse_file(){
 	FILE* fp = fopen(lsa_file, "r");
-	if(fp = NULL) return;
+	if(fp == NULL) return;
 
 	char* 	line = NULL;
 	size_t 	len = 0;
@@ -90,27 +87,9 @@ void parse_file(){
 	lsa*	temp;
 	lsa*	find;
 
-  /*************************************************************************/
-  /* Comments from Big Brother Fadhil:                                     */
-  /*                                                                       */
-  /*   (1). char* IP and char* nbors need to be allocated memory.          */
-  /*   sscanf does not automatically allocate memory for those strings.    */
-  /*   This is buffer-overflow code.                                       */
-  /*                                                                       */
-  /*   (2). Line 80. char* IP will decay upon exiting function. Do         */
-  /*   a strncpy. But make sure you first fix the sscanf bit.              */
-  /*                                                                       */
-  /*   (3). you have to free char* line. getline mallocs memory internally */
-  /*   for it. It is up to you to free.                                    */
-  /*                                                                       */
-  /*   (4). Close the lsa_file after you're done.
-  /*
-  /*   Ciao ciao                                                           */
-  /*************************************************************************/
-
 	while((read = getline(&line, &len, fp)) != -1){
 		nbors = malloc(MAX_IP_SIZE * get_comma_count(line));
-		sscanf(line, "%s %d %s", IP, seq, nbors);
+		sscanf(line, "%s %d %s", IP, &seq, nbors);
 		temp = calloc(1, sizeof(lsa));
 		strcpy(temp->sender, IP);
 		temp->seq = seq;
@@ -121,7 +100,7 @@ void parse_file(){
 			HASH_ADD_STR(lsa_hash, sender, temp);
 		} else {
 			if(find->seq < temp->seq){
-				for(int i = 0; i <= find->num_nbors; i++){
+				for(int i = 0; i <= (int)find->num_nbors; i++){
 					free(find->nbors[i]);
 				}
 				free(find->nbors);
