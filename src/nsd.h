@@ -21,6 +21,7 @@
 #include "uthash.h"
 #include "ospf.h"
 #include "mydns.h"
+#include "logger.h"
 
 void usage();
 void process_inbound_udp(int sock);

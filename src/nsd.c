@@ -130,6 +130,9 @@ void process_inbound_udp(int sock)
                   /* Select this server */
                   gen_RDATA(current->sender, iphex);
                   rrcount = (rrcount + 1) % numsrvs;
+
+                  log_dns(inet_ntoa(from.sin_addr), current->sender, log_file);
+
                   break;
                 }
               cntdwn--;
@@ -139,6 +142,8 @@ void process_inbound_udp(int sock)
   else
     {
       lsa* nearest = shortest_path(lsa_hash, (char *) query->NAME);
+
+      log_dns(inet_ntoa(from.sin_addr), nearest->sender, log_file);
 
       /* Select this server */
       gen_RDATA(nearest->sender, iphex);
@@ -161,7 +166,6 @@ void process_inbound_udp(int sock)
   sendto(sock, msg2send->buf, msg2send->pos, 0,
          (struct sockaddr *) &from, sizeof(from));
 
-  //free_answer(response);
   free_dns(msg);
   delete_bytebuf(msg2send);
 }

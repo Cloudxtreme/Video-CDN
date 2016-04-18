@@ -72,3 +72,16 @@ int log_state(fsm* state, FILE* file, double tput, char* chunkname)
 
   return EXIT_SUCCESS;
 }
+
+int log_dns(char* client_ip, char* response_ip, char* log_file)
+{
+  FILE* fp = fopen(log_file, "a");
+
+  fprintf(fp, "%ld %s video.cs.cmu.edu %s \n",
+          time(NULL),
+          client_ip,
+          response_ip
+          );
+
+  return 0;
+}
