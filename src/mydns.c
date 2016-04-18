@@ -210,6 +210,16 @@ void parse_other_half(uint8_t* other_half, dns_message* info){
 	info->RCODE = other_int & 0xF;
 }
 
+void free_question(question* q){
+  if(q->QNAME == NULL) free(q->QNAME);
+  free(q);
+}
+
+void free_answer(answer* q){
+  if(q->QNAME == NULL) free(q->QNAME);
+  free(q);
+}
+
 void free_dns(dns_message* info){
 	int qcount = info->QDCOUNT - 1;
 	int acount = info->ANCOUNT - 1;
