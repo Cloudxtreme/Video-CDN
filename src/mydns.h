@@ -1,9 +1,13 @@
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <time.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdio.h>
+
 
 #define MAX_MESSAGE_SIZE  512
 
@@ -88,7 +92,7 @@ int init_mydns(const char *dns_ip, unsigned int dns_port, const char *local_ip);
  * @return 0 on success, -1 otherwise
  */
 
-int resolve(const char *node, const char *service,
+int resolve(char *node, char *service,
             const struct addrinfo *hints, struct addrinfo **res);
 
 
@@ -107,3 +111,4 @@ answer*   gen_answer(uint8_t* NAME, size_t NAME_len,
 
 void free_dns(dns_message* info);
 int binary2int(uint8_t *buf, int len);
+void delete_bytebuf(struct byte_buf* b);

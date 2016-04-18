@@ -1,11 +1,15 @@
 #include "mydns.h"
 
+extern char* dns_ip;
+extern short dns_port;
+extern int   dns_sock;
+
 int init_mydns(const char *dns_ip, unsigned int dns_port, const char *local_ip)
 {
   return 0;
 }
 
-int resolve(const char *node, const char *service,
+int resolve(char *node, char *service,
             const struct addrinfo *hints, struct addrinfo **res)
 {
   struct sockaddr_in dns_addr;
@@ -23,13 +27,13 @@ int resolve(const char *node, const char *service,
 
   srand(time(NULL));
 
-  byte_buf* msg2send = gen_message(rand(), 0, 0, 0, 0,
+  struct byte_buf* msg2send = gen_message(rand(), 0, 0, 0, 0,
                                    0, 0, 0,
                                    1, 0,
                                    dumquery, NULL);
 
-  sendto(sock, msg2send->buf, msg2send->pos, 0,
-         &dns_addr, sizeof(dns_addr));
+  sendto(dns_sock, msg2send->buf, msg2send->pos, 0,
+         (struct sockaddr *)&dns_addr, sizeof(dns_addr));
 
   free(query->NAME);
   free(query);
@@ -517,7 +521,7 @@ question* gen_question(uint8_t* QNAME, size_t QNAME_len)
 
   q->name_size = (int) QNAME_len - 1;
   q->NAME      = calloc(1, QNAME_len);
-  memcpy(q->NAME, NAME, QNAME_len); // make sure to copy the 0x0
+  memcpy(q->NAME, QNAME, QNAME_len); // make sure to copy the 0x0
   q->TYPE[1]   = 1;
   q->CLASS[1]  = 1;
 
@@ -535,7 +539,7 @@ question* gen_question(uint8_t* QNAME, size_t QNAME_len)
 /*                                                                      */
 /* @returns A pointer to an answer struct. Make sure to free.           */
 /************************************************************************/
-answer* gen_answer(uint8_t* NAME, size_T NAME_len,
+answer* gen_answer(uint8_t* NAME, size_t NAME_len,
                    uint8_t* RDATA)
 {
   //@assert length(RDATA) == 4 bytes.

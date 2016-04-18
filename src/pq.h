@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "pq.h"
 
 typedef struct {
   int priority;

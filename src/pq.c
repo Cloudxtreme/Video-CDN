@@ -1,4 +1,5 @@
 /* Code obtained from https://rosettacode.org/wiki/Priority_queue#C */
+#include "pq.h"
 
 void push (heap_t *h, int priority, char *data) {
     if (h->len + 1 >= h->size) {

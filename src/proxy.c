@@ -21,6 +21,7 @@
 #include "engine.h"
 #include "parse.h"
 #include "uthash.h"
+#include "mydns.h"
 
 /** Global vars **/
 FILE* logfile;
@@ -47,7 +48,7 @@ void add_client(int client_fd, pool *p);
 void check_clients(pool *p, int dns_sock);
 void cleanup(int sig);
 void sigchld_handler(int sig);
-int connect_server(fsm* state, char* webip, in_addr_t dnsip)
+int connect_server(fsm* state, char* webip, in_addr_t dnsip);
 
 /** Definitions **/
 
@@ -186,7 +187,7 @@ int main(int argc, char* argv[])
         }
 
       /* Read and respond to each client requests */
-      check_clients(pool);
+      check_clients(pool, dns_sock);
     }
 }
 
@@ -304,8 +305,8 @@ void add_client(int client_fd, pool *p)
 /* writing, reads a request. Never blocks for a                      */
 /* single user.                                                      */
 /*                                                                   */
-/* @param p The pool of clients to iterate through.
-   @param dns_sock The DNS server socket
+/* @param p The pool of clients to iterate through.                  */
+/* @param dns_sock The DNS server socket                             */
 /*********************************************************************/
 void check_clients(pool *p, int dns_sock)
 {
@@ -333,11 +334,12 @@ void check_clients(pool *p, int dns_sock)
               #define              BUFLEN         512
               uint8_t              buf[BUFLEN]  = {0};
               struct  sockaddr_in  from         = {0};
-              size_t               n            = 0;
+              socklen_t            fromlen      = sizeof(from);
+              //size_t               n            = 0;
               answer*              reply        = NULL;
 
-              recvfrom(dns_sock, buf, BUFLEN,
-                       (struct sockaddr *) &from, sizeof(from));
+              recvfrom(dns_sock, buf, BUFLEN, 0,
+                       (struct sockaddr *) &from, &fromlen);
 
               dns_message* msg = parse_message(buf);
               reply            = msg->answers[0];
@@ -725,7 +727,7 @@ int connect_server(fsm* state, char* webip, in_addr_t dnsip)
       serv.sin_port        = 8080;
       serv.sin_addr.s_addr = htonl(dnsip);
 
-      servinfo             = &serv;
+      servinfo             = (struct addrinfo *)&serv;
     }
 
   if((sock = socket(servinfo->ai_family, servinfo->ai_socktype,
@@ -752,7 +754,10 @@ int connect_server(fsm* state, char* webip, in_addr_t dnsip)
   if(webip)
     strncpy(state->serv_ip, webip, INET_ADDRSTRLEN);
   else
-    strncpy(state->serv_ip, inet_ntoa(servinfo->sin_addr), INET_ADDRSTRLEN);
+    {
+      struct sockaddr_in* s = (struct sockaddr_in *) servinfo;
+      strncpy(state->serv_ip, inet_ntoa(s->sin_addr), INET_ADDRSTRLEN);
+    }
 
   if(webip)
     freeaddrinfo(servinfo);
