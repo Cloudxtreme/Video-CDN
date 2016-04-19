@@ -2,6 +2,8 @@
 
 //valgrind --db-attach=yes --leak-check=yes --tool=memcheck --num-callers=16 --leak-resolution=high
 //./nameserver logNSD.txt 5.0.0.1 38296 ../bitrate-project-starter/topos/topo1/topo1.server ../bitrate-project-starter/topos/topo1/topo1.lsa 
+//./proxy log.txt 0.125 64589 1.0.0.1 5.0.0.1 38666
+
 extern char* lsa_file;
 extern char* servers_file;
 extern lsa*  lsa_hash;
