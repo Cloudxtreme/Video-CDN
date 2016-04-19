@@ -67,7 +67,7 @@ typedef struct state {
   struct timespec start; // Time of receiving complete chunk request.
   struct timespec end;   // Time of receiving complete chunk data.
 
-  double avg_tput;        // Average tput using EW2MA.
+  unsigned long long avg_tput;        // Average tput using EW2MA.
   unsigned long long current_best;
   char lastchunk[300];
 

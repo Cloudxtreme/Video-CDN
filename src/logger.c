@@ -44,24 +44,21 @@ int log_close(FILE* file)
   return EXIT_SUCCESS;
 }
 
-int log_state(fsm* state, FILE* file, double tput, char* chunkname)
+int log_state(fsm* state, FILE* file, unsigned long long tput, char* chunkname,
+              unsigned int long long duration)
 {
-
-  struct timespec duration;
-  duration.tv_sec  = state->end.tv_sec  - state->start.tv_sec;
-  duration.tv_nsec = state->end.tv_nsec - state->start.tv_nsec;
-
-  double avg_tput            = state->avg_tput;
+  unsigned long long avg_tput = state->avg_tput;
   unsigned long long bitrate = state->current_best;
   char*  server              = state->serv_ip;
+
+  double elapsed             = ((float) duration)/1000000000.0;
 
   if(strlen(chunkname) == 0)
     return 0;
 
-  fprintf(file, "%ld %lld.%.9ld %f %f %llu %s %s \n",
+  fprintf(file, "%ld %f %llu %llu %llu %s %s \n",
           time(NULL),
-          (long long)duration.tv_sec,
-          duration.tv_nsec,
+          elapsed,
           tput,
           avg_tput,
           bitrate,

@@ -48,7 +48,7 @@ void getSubstring(char *dest, char *src, int start, int end){
 //comparing the result to the approprtiate bitrate in the global array.
 void calculate_bitrate(fsm* state){
 
-  int    size            = state->body_size;
+  size_t    size         = state->body_size;
   struct timespec *start = &(state->start);
   struct timespec *end   = &(state->end);
   unsigned long long int    bitrate;
@@ -60,8 +60,9 @@ void calculate_bitrate(fsm* state){
   unsigned long long int end_time =
     1000000000 * (end->tv_sec) + (end->tv_nsec);
   unsigned int long long elapsed = end_time - start_time;
+  // elapsed is in nanoseconds.
 
-  double throughput = (size * 8 * 1000000) / elapsed; /* kilobits per second */
+  unsigned long long throughput = (size * 8 * 1000000) / elapsed; /* kilobits per second */
 
   struct bitrate* current = NULL;
   struct bitrate* tmp     = NULL;
@@ -76,7 +77,7 @@ void calculate_bitrate(fsm* state){
         if(bitrate > current_best)
           current_best = bitrate;
       }
- 
+
     if(bitrate < smallest)
       smallest = bitrate;
   }
@@ -87,8 +88,13 @@ void calculate_bitrate(fsm* state){
     state->current_best = current_best;
 
   global_best = state->current_best;
-  
-  log_state(state, logfile, throughput, state->lastchunk);
+
+  printf("Throughput is :%lld \n", throughput);
+  printf("Elapsed time is : %f  \n", ((float) elapsed)/1000000000.0);
+  printf("Size is : %zu \n", size);
+  printf("\n");
+
+  log_state(state, logfile, throughput, state->lastchunk, elapsed);
   //  printf("Current best: %lld \n", state->current_best);
 }
 

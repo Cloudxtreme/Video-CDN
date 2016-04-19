@@ -235,7 +235,7 @@ void add_client(int client_fd, pool *p)
   p->nready--;
 
   /* Create a fsm for this client */
-  state = malloc(sizeof(struct state));
+  state = calloc(1, sizeof(struct state));
 
   /* Create initial values for fsm */
   memset(state->request,  0, BUF_SIZE);
@@ -519,6 +519,7 @@ void check_clients(pool *p, int dns_sock)
 
                     /* Calculate new throughput here */
                     calculate_bitrate(state);
+
                     break;
                   }
 
