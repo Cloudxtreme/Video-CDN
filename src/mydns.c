@@ -1,45 +1,10 @@
 #include "mydns.h"
 
+/*
 extern char* dns_ip;
 extern short dns_port;
 extern int   dns_sock;
-
-int resolve(char *node, char *service,
-            const struct addrinfo *hints, struct addrinfo **res)
-{
-  (void) hints;
-  (void) res;
-  (void) service;
-
-  struct sockaddr_in dns_addr;
-
-  bzero(&dns_addr, sizeof(dns_addr));
-  dns_addr.sin_family  = AF_UNSPEC;
-  dns_addr.sin_port    = htons(dns_port);
-  dns_addr.sin_addr.s_addr = inet_addr(dns_ip);
-
-  byte_buf* QNAME_bb = gen_QNAME(node, strlen(node));
-  question* query    = gen_question(QNAME_bb->buf, strlen((char *) QNAME_bb->buf) + 1);
-
-  question** dumquery = calloc(1, sizeof(question*));
-  dumquery[0]         = query;
-
-  srand(time(NULL));
-
-  struct byte_buf* msg2send = gen_message(rand(), 0, 0, 0, 0,
-                                   0, 0, 0,
-                                   1, 0,
-                                   dumquery, NULL);
-
-  sendto(dns_sock, msg2send->buf, msg2send->pos, 0,
-         (struct sockaddr *)&dns_addr, sizeof(dns_addr));
-
-  free(query->NAME);
-  free(query);
-  delete_bytebuf(msg2send);
-  delete_bytebuf(QNAME_bb);
-  return 0;
-}
+*/
 
 /**
  * converts the binary char string str to ascii format. the length of

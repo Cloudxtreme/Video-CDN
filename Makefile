@@ -10,7 +10,7 @@ CC			= gcc
 CFLAGS 	= -Wall -Wextra -Werror -g -std=gnu99 -lrt
 VPATH 	=	src
 OBJS		= proxy.o logger.o parse.o engine.o mydns.o
-NSOBJS	= nsd.o 	ospf.o 	pq.o     mydns.o
+NSOBJS	= nsd.o 	ospf.o 	pq.o     mydns.o logger.o
 
 all: proxy nameserver cleanobj
 
@@ -22,7 +22,7 @@ proxy: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 nameserver: $(NSOBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@
+	$(CC) $(CFLAGS) $(NSOBJS) -o $@
 
 handin:
 	(make clean; cd ..; tar cvf maleka.tar handin --exclude cp1_checker.py --exclude starter_code --exclude www --exclude flaskr --exclude handin.txt --exclude logfile --exclude ".gdbinit" --exclude ".gitignore" --exclude cgi_script.py --exclude cgi_example.c --exclude daemonize.c --exclude bitrate-project-starter);

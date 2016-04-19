@@ -1,5 +1,7 @@
 #include "ospf.h"
 
+//valgrind --db-attach=yes --leak-check=yes --tool=memcheck --num-callers=16 --leak-resolution=high
+//./nameserver logNSD.txt 5.0.0.1 38296 ../bitrate-project-starter/topos/topo1/topo1.server ../bitrate-project-starter/topos/topo1/topo1.lsa 
 extern char* lsa_file;
 extern char* servers_file;
 extern lsa*  lsa_hash;
@@ -17,6 +19,7 @@ int get_comma_count(char *nbors){
 size_t num_server()
 {
   FILE* fp   = fopen(servers_file, "r");
+  if(fp == NULL) return 0;
   char* line = NULL;
   size_t len = 0;
   size_t num = 0;
@@ -48,7 +51,9 @@ void is_server(char* IP, lsa* myLSA){
 			myLSA->server = 1;
 			break;
 		}
+		
 	}
+	free(line);
 	fclose(fp);
 	return;
 }
@@ -58,8 +63,8 @@ void parse_nbors(lsa* myLSA, char *nbors){
 	int token_count = 0;
 	char* token;
 
-	myLSA->num_nbors = comma_count;
-	myLSA->nbors = calloc(1, sizeof(char*));
+	myLSA->num_nbors = comma_count + 1;
+	myLSA->nbors = calloc(1, myLSA->num_nbors * sizeof(char*));
 	for(int i = 0; i <= comma_count; i++){
 		myLSA->nbors[i] = calloc(1, MAX_IP_SIZE + 1);
 	}
@@ -100,7 +105,7 @@ void parse_file(){
 			HASH_ADD_STR(lsa_hash, sender, temp);
 		} else {
 			if(find->seq < temp->seq){
-				for(int i = 0; i <= (int)find->num_nbors; i++){
+				for(int i = 0; i < (int)find->num_nbors; i++){
 					free(find->nbors[i]);
 				}
 				free(find->nbors);
@@ -110,8 +115,8 @@ void parse_file(){
 			}
 		}
 		free(nbors);
-		free(line);
 	}
+	free(line);
 	fclose(fp);
 }
 
