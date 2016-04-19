@@ -44,20 +44,33 @@ int main(int argc, char* argv[])
 
   /* Parse the LSAs */
   parse_file();
+  
+  /*
+  lsa* current;
+  lsa* temp;
+
+  HASH_ITER(hh, lsa_hash, current, temp)
+    {
+      printf("Node: %s\n", current->sender);
+      for(int i = 0; i < (int)current->num_nbors; i++){
+        printf("Neighbor %d: %s\n", i, current->nbors[i]);
+      }
+    }
+  */
 
   signal(SIGPIPE, SIG_IGN);
 
   fprintf(stdout, "--------Welcome to the fabulous DNS server!------\n");
 
   /* Create a socket for comms */
-  if ((listen_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+  if ((listen_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
       return EXIT_FAILURE;
     }
 
   /* Bind to the DNS server IP/port */
   bzero(&serv_addr, sizeof(serv_addr));
-  serv_addr.sin_family      = AF_UNSPEC;
+  serv_addr.sin_family      = AF_INET;
   serv_addr.sin_port        = htons(port);
   serv_addr.sin_addr.s_addr = inet_addr(ip);
 
@@ -74,6 +87,7 @@ int main(int argc, char* argv[])
   if (bind(listen_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)))
     {
       close(listen_fd);
+      printf("%s\n", strerror(errno));
       return EXIT_FAILURE;
     }
 

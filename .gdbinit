@@ -1,2 +1,2 @@
 set auto-load safe-path /
-set args log.txt 0.2 9999 1.0.0.1 1 1 3.0.0.1
+set args 9999 5.0.0.1 38928 ../bitrate-project-starter/topos/topo1/topo1.servers ../bitrate-project-starter/topos/topo1/topo1.lsa

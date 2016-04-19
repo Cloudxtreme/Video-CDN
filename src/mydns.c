@@ -1,45 +1,10 @@
 #include "mydns.h"
 
+/*
 extern char* dns_ip;
 extern short dns_port;
 extern int   dns_sock;
-
-int resolve(char *node, char *service,
-            const struct addrinfo *hints, struct addrinfo **res)
-{
-  (void) hints;
-  (void) res;
-  (void) service;
-
-  struct sockaddr_in dns_addr;
-
-  bzero(&dns_addr, sizeof(dns_addr));
-  dns_addr.sin_family  = AF_UNSPEC;
-  dns_addr.sin_port    = htons(dns_port);
-  dns_addr.sin_addr.s_addr = inet_addr(dns_ip);
-
-  byte_buf* QNAME_bb = gen_QNAME(node, strlen(node));
-  question* query    = gen_question(QNAME_bb->buf, strlen((char *) QNAME_bb->buf) + 1);
-
-  question** dumquery = calloc(1, sizeof(question*));
-  dumquery[0]         = query;
-
-  srand(time(NULL));
-
-  struct byte_buf* msg2send = gen_message(rand(), 0, 0, 0, 0,
-                                   0, 0, 0,
-                                   1, 0,
-                                   dumquery, NULL);
-
-  sendto(dns_sock, msg2send->buf, msg2send->pos, 0,
-         (struct sockaddr *)&dns_addr, sizeof(dns_addr));
-
-  free(query->NAME);
-  free(query);
-  delete_bytebuf(msg2send);
-  delete_bytebuf(QNAME_bb);
-  return 0;
-}
+*/
 
 /**
  * converts the binary char string str to ascii format. the length of
@@ -225,22 +190,22 @@ void free_answer(answer* q){
 }
 
 void free_dns(dns_message* info){
-	int qcount = binary2int(info->QDCOUNT, 2) - 1;
-	int acount = binary2int(info->ANCOUNT, 2) - 1;
+	int qcount = binary2int(info->QDCOUNT, 2);
+	int acount = binary2int(info->ANCOUNT, 2);
 
 	if(info->questions != NULL){
-		while(qcount <= 0){
-			free(((info->questions)[qcount])->NAME);
-			free(((info->questions)[qcount]));
+		while(qcount > 0){
+			free(((info->questions)[qcount-1])->NAME);
+			free(((info->questions)[qcount-1]));
 			qcount--;
 		}
 		free(info->questions);
 	}
 
 	if(info->answers != NULL){
-		while(acount <= 0){
-			free(((info->answers)[acount])->NAME);
-			free(((info->answers)[acount]));
+		while(acount > 0){
+			free(((info->answers)[acount-1])->NAME);
+			free(((info->answers)[acount-1]));
 			acount--;
 		}
 		free(info->answers);
@@ -454,10 +419,11 @@ byte_buf* gen_message(int id, int QR, int OPCODE, int AA,
 /*****************************************************************/
 byte_buf* gen_QNAME(char* name, size_t len)
 {
-  char* word = NULL;
+  char* data = malloc(len + 1);
+  strcpy(data, name);
+  char* word;
   uint8_t label_len;
-  byte_buf* label = create_bytebuf(2 * strlen(name));
-  (void) len;
+  byte_buf* label = create_bytebuf(2 * len);
 
   /******************************************************/
   /* Example DNS question:                              */
@@ -469,8 +435,7 @@ byte_buf* gen_QNAME(char* name, size_t len)
   /******************************************************/
 
   /* First, split the string into tokens delimited by period. */
-  word = strtok(name, ".");
-
+  word = strtok(data, ".");
   while(word)
     {
       //@assert strlen(word) <= 255;
@@ -480,7 +445,8 @@ byte_buf* gen_QNAME(char* name, size_t len)
 
       word = strtok(NULL, ".");
     }
-
+    
+  free(data);
   return label;
 }
 

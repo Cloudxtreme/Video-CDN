@@ -92,8 +92,8 @@ int init_mydns(const char *dns_ip, unsigned int dns_port, const char *local_ip);
  * @return 0 on success, -1 otherwise
  */
 
-int resolve(char *node, char *service,
-            const struct addrinfo *hints, struct addrinfo **res);
+//int resolve(char *node, char *service,
+//            const struct addrinfo *hints, struct addrinfo **res);
 
 
 void usage();
