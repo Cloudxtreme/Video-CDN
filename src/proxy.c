@@ -82,8 +82,6 @@ int resolve(char *node, char *service,
   sendto(dns_sock, msg2send->buf, msg2send->pos, 0,
          (struct sockaddr *)&dns_addr, sizeof(dns_addr));
 
-  free(query->NAME);
-  free(query);
   delete_bytebuf(msg2send);
   delete_bytebuf(QNAME_bb);
   return 0;
