@@ -173,13 +173,13 @@ void process_inbound_udp(int sock)
 
   byte_buf* qname2send = gen_QNAME((char *) query->NAME, query->name_size);
 
-  question* q2send     = gen_question(qname2send->buf, qname2send->pos + 1);
+  question* q2send     = gen_question(qname2send->buf, qname2send->pos + 2);
 
   question** dumquery  = calloc(1, sizeof(question*));
   dumquery[0]          = q2send;
 
   answer* response =
-      gen_answer(qname2send->buf, qname2send->pos + 1, iphex);
+      gen_answer(qname2send->buf, qname2send->pos + 2, iphex);
 
   answer** dumresponse = calloc(1, sizeof(answer*));
   dumresponse[0] = response;
