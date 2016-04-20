@@ -4,6 +4,7 @@
 extern FILE* logfile;
 extern struct bitrate *all_bitrates;
 extern unsigned long long int global_best;
+extern unsigned long long global_smallest;
 
 int smallest_bitrate(struct bitrate* b)
 {
@@ -52,6 +53,7 @@ void parse_f4m(fsm* state)
     }
 
   global_best = smallest_bitrate(all_bitrates);
+  global_smallest = global_best;
 
 }
 
