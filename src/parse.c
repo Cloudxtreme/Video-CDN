@@ -5,6 +5,21 @@ extern FILE* logfile;
 extern struct bitrate *all_bitrates;
 extern unsigned long long int global_best;
 
+int smallest_bitrate(struct bitrate* b)
+{
+  int s = b->bitrate;
+  struct bitrate* current;
+  struct bitrate* tmp;
+
+  HASH_ITER(hh, b, current, tmp)
+    {
+      if(current->bitrate < s)
+        s = current->bitrate;
+    }
+
+  return s;
+}
+
 /*********************************************************/
 /* @brief Parse a .f4m file to obtain bitrates.          */
 /* @param state - state of the client to store bitrates. */
@@ -36,6 +51,8 @@ void parse_f4m(fsm* state)
       buf = needle2;
     }
 
+  global_best = smallest_bitrate(all_bitrates);
+
 }
 
 /* Returns a substring of the given string from [start,end). */
@@ -47,6 +64,10 @@ void getSubstring(char *dest, char *src, int start, int end){
 //Should calculate the bitrate by first finding the throughput and then
 //comparing the result to the approprtiate bitrate in the global array.
 void calculate_bitrate(fsm* state){
+
+  /* Not a chunk, just an html page or something */
+  if(strlen(state->lastchunk) == 0)
+    return;
 
   size_t    size         = state->body_size;
   struct timespec *start = &(state->start);
@@ -89,10 +110,12 @@ void calculate_bitrate(fsm* state){
 
   global_best = state->current_best;
 
-  printf("Throughput is :%lld \n", throughput);
-  printf("Elapsed time is : %f  \n", ((float) elapsed)/1000000000.0);
-  printf("Size is : %zu \n", size);
-  printf("\n");
+  /***********************************************************************/
+  /* printf("Throughput is :%lld \n", throughput);                       */
+  /* printf("Elapsed time is : %f  \n", ((float) elapsed)/1000000000.0); */
+  /* printf("Size is : %zu \n", size);                                   */
+  /* printf("\n");                                                       */
+  /***********************************************************************/
 
   log_state(state, logfile, throughput, state->lastchunk, elapsed);
   //  printf("Current best: %lld \n", state->current_best);
@@ -227,8 +250,8 @@ void parse_client_message(struct state *client){
 
     if(my_req->bitrate == 0)
       {
-	my_req->bitrate = global_best;
-	client->current_best = global_best;
+        my_req->bitrate = global_best;
+        client->current_best = global_best;
       }
 
     sprintf(response, "GET %s%dSeg%d-Frag%d HTTP/1.1\r\n%s", my_req->path,

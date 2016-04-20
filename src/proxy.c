@@ -272,7 +272,7 @@ void add_client(int client_fd, pool *p)
   p->nready--;
 
   /* Create a fsm for this client */
-  state = calloc(1, sizeof(struct state));
+  state = malloc(sizeof(struct state));
 
   /* Create initial values for fsm */
   memset(state->request,  0, BUF_SIZE);
@@ -289,6 +289,8 @@ void add_client(int client_fd, pool *p)
 
   state->conn       = 1;
   bzero(state->serv_ip, INET_ADDRSTRLEN);
+
+  state->avg_tput   = 1000;
 
   if(!dns)
     connect_server(state, www_ip, 0);

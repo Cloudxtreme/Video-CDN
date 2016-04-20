@@ -39,7 +39,7 @@ echo_client:
 .PHONY: all clean
 
 clean:
-	rm -f *~ *.o *.tar proxy nameserver
+	rm -f *~ *.o *.tar *.txt proxy nameserver
 
 cleanobj:
 	rm *.o

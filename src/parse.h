@@ -44,6 +44,7 @@ typedef struct client_req{
 void parse_f4m(fsm* state);
 void calculate_bitrate(fsm* state);
 void parse_client_message(struct state *client);
+int smallest_bitrate(struct bitrate* b);
 
 extern float alpha;
 
