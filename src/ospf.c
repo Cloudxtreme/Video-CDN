@@ -1,7 +1,7 @@
 #include "ospf.h"
 
 //valgrind --db-attach=yes --leak-check=yes --tool=memcheck --num-callers=16 --leak-resolution=high
-//./nameserver logNSD.txt 5.0.0.1 38296 ../bitrate-project-starter/topos/topo1/topo1.server ../bitrate-project-starter/topos/topo1/topo1.lsa 
+//./nameserver logNSD.txt 5.0.0.1 38296 ../bitrate-project-starter/topos/topo1/topo1.server ../bitrate-project-starter/topos/topo1/topo1.lsa
 //./proxy log.txt 0.125 64589 1.0.0.1 5.0.0.1 38666
 
 extern char* lsa_file;
@@ -53,7 +53,7 @@ void is_server(char* IP, lsa* myLSA){
 			myLSA->server = 1;
 			break;
 		}
-		
+
 	}
 	free(line);
 	fclose(fp);
@@ -166,7 +166,7 @@ lsa* shortest_path(lsa* graph, char* src)
         {
           HASH_FIND_STR(graph, lsa_info->nbors[i], visitcheck);
 
-          if(!visitcheck) return NULL; // handle error properly.
+          if(!visitcheck) continue; // could be DNS, continue.
 
           /* Do not add nodes that we've visited before */
           if(!visitcheck->visited)

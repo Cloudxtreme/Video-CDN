@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
 
   /* Parse the LSAs */
   parse_file();
-  
+
   /*
   lsa* current;
   lsa* temp;
@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
       FD_ZERO(&readfds);
       FD_SET(listen_fd, &readfds);
 
-      select(listen_fd, &readfds, NULL, NULL, NULL);
+      select(listen_fd + 1, &readfds, NULL, NULL, NULL);
 
       if (FD_ISSET(listen_fd, &readfds))
         process_inbound_udp(listen_fd);
@@ -122,7 +122,13 @@ void process_inbound_udp(int sock)
   socklen_t            fromlen      = sizeof(from);
   question*            query        = NULL;
 
-  recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
+  ssize_t n = recvfrom(sock, buf, BUFLEN, 0, (struct sockaddr *) &from, &fromlen);
+
+  (void) n;
+
+  char* fromip = inet_ntoa(from.sin_addr);
+
+  printf("msg from : %s \n", fromip);
 
   dns_message* msg   = parse_message(buf);
   query              = msg->questions[0];
@@ -155,7 +161,7 @@ void process_inbound_udp(int sock)
     }
   else
     {
-      lsa* nearest = shortest_path(lsa_hash, (char *) query->NAME);
+      lsa* nearest = shortest_path(lsa_hash, fromip);
 
       log_dns(inet_ntoa(from.sin_addr), nearest->sender, log_file);
 
@@ -180,7 +186,6 @@ void process_inbound_udp(int sock)
   sendto(sock, msg2send->buf, msg2send->pos, 0,
          (struct sockaddr *) &from, sizeof(from));
 
-  free_dns(msg);
   delete_bytebuf(msg2send);
 }
 

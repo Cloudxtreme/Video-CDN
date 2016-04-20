@@ -60,9 +60,18 @@ int resolve(char *node, char *service,
   (void) service;
 
   struct sockaddr_in dns_addr;
+  struct sockaddr_in my_addr;
+
+  bzero(&my_addr, sizeof(my_addr));
+  my_addr.sin_family  = AF_INET;
+  my_addr.sin_port    = 0;
+  my_addr.sin_addr.s_addr = inet_addr(fake_ip);
+
+  /* Bind this socket to the fake-ip with an ephemeral port */
+  bind(dns_sock, (struct sockaddr *) &my_addr, sizeof(my_addr));
 
   bzero(&dns_addr, sizeof(dns_addr));
-  dns_addr.sin_family  = AF_UNSPEC;
+  dns_addr.sin_family  = AF_INET;
   dns_addr.sin_port    = htons(dns_port);
   dns_addr.sin_addr.s_addr = inet_addr(dns_ip);
 
@@ -743,7 +752,7 @@ int connect_server(fsm* state, char* webip, in_addr_t dnsip)
   /* Bind the fake IP to the socket */
 
   memset(&fake, 0, sizeof(fake));
-  fake.sin_family      = AF_UNSPEC;
+  fake.sin_family      = AF_INET;
   fake.sin_addr.s_addr = inet_addr(fake_ip);
   fake.sin_port        = 0;
 
