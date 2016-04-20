@@ -232,10 +232,10 @@ void parse_name(byte_buf *temp_message, dns_message* info, int index,
 	while(label_length != 0){
 		total += label_length;
 		mmemtransfer(name_help, temp_message, label_length);
-		mmemcat(name_help, period, 1);
 		memset(length, 0, 1);
 		mmemmove(length, temp_message, 1);
 		label_length = binary2int(length, 1);
+    if(label_length != 0) mmemcat(name_help, period, 1);
 	}
 
 	if(quora == 0){
