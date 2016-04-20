@@ -140,7 +140,7 @@ lsa* shortest_path(lsa* graph, char* src)
       /* Find the node from the table. */
       HASH_FIND_STR(graph, src, lsa_info);
 
-      if(!lsa_info) return NULL; // This is an error, handle properly.
+      if(!lsa_info) continue; // This is an error, handle properly.
 
       /* Mark this nodes as visited */
       lsa_info->visited = 1;

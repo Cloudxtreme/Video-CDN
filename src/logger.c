@@ -79,6 +79,7 @@ int log_dns(char* client_ip, char* response_ip, char* log_file)
           client_ip,
           response_ip
           );
+  fclose(fp);
 
   return 0;
 }
