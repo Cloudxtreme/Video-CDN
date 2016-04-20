@@ -177,15 +177,23 @@ void process_inbound_udp(int sock)
   answer** dumresponse = calloc(1, sizeof(answer*));
   dumresponse[0] = response;
 
-  struct byte_buf* msg2send;
-  msg2send = gen_message(binary2int(msg->ID, 2), 1, 0, 1,
-                         0, 0, 0, 0,
-                         1, 1,
-                         msg->questions, dumresponse);
+  byte_buf* qname2send = gen_QNAME((char *) query->NAME, query->name_size);
+
+  question* q2send     = gen_question(qname2send->buf, qname2send->pos + 1);
+
+  question** dumquery  = calloc(1, sizeof(question*));
+  dumquery[0]          = q2send;
+
+  struct byte_buf* msg2send =
+      gen_message(binary2int(msg->ID, 2), 1, 0, 1,
+                  0, 0, 0, 0,
+                  1, 1,
+                  dumquery, dumresponse);
 
   sendto(sock, msg2send->buf, msg2send->pos, 0,
          (struct sockaddr *) &from, sizeof(from));
 
+  free_dns(msg);
   delete_bytebuf(msg2send);
 }
 
