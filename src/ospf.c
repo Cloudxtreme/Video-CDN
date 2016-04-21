@@ -8,6 +8,9 @@ extern char* lsa_file;
 extern char* servers_file;
 extern lsa*  lsa_hash;
 
+/* @brief Returns the number of commas in the neighbors list.
+ * @param nbors: The string containing the neighbors.
+ */
 int get_comma_count(char *nbors){
 	int comma_count = 0;
 	char* line 		= strstr(nbors, ",");
@@ -18,6 +21,8 @@ int get_comma_count(char *nbors){
 	return comma_count;
 }
 
+/* @brief Returns the number of servers in the servers file.
+ */
 size_t num_server()
 {
   FILE* fp   = fopen(servers_file, "r");
@@ -39,6 +44,10 @@ size_t num_server()
   return num;
 }
 
+/* @brief Sets myLSA->server to 1 if IP is a server, 0 otherwise
+ * @param IP: The IP that we're checking.
+ * @param myLSA: Struct containing the message info.
+ */
 void is_server(char* IP, lsa* myLSA){
 	FILE* fp = fopen(servers_file, "r");
 	if(fp == NULL) return;
@@ -60,6 +69,10 @@ void is_server(char* IP, lsa* myLSA){
 	return;
 }
 
+/* @brief Parses all the neighbors and adds them to an array
+ * @param myLSA: Struct containing the message info.
+ * @param nbors: The neighbors we're adding.
+ */
 void parse_nbors(lsa* myLSA, char *nbors){
 	int comma_count = get_comma_count(nbors);
 	int token_count = 0;
@@ -80,6 +93,8 @@ void parse_nbors(lsa* myLSA, char *nbors){
 	return;
 }
 
+/* @brief Parses the LSA file and generates a hashtable of IP's and neighbors
+ */
 void parse_file(){
 	FILE* fp = fopen(lsa_file, "r");
 	if(fp == NULL) return;
@@ -95,7 +110,7 @@ void parse_file(){
 	lsa*	find;
 
 	while((read = getline(&line, &len, fp)) != -1){
-		nbors = malloc(MAX_IP_SIZE * get_comma_count(line));
+		nbors = malloc(MAX_IP_SIZE * (get_comma_count(line) + 1));
 		sscanf(line, "%s %d %s", IP, &seq, nbors);
 		temp = calloc(1, sizeof(lsa));
 		strcpy(temp->sender, IP);

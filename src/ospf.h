@@ -9,6 +9,7 @@
 
 #define MAX_IP_SIZE		40
 
+/* Stores relevant info about the IP and its neighbors */
 typedef struct lsa{
   char 		sender[MAX_IP_SIZE];
   int 		seq;

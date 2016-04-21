@@ -11,12 +11,14 @@
 
 #define MAX_MESSAGE_SIZE  512
 
+/* Good ol' byte+buf */
 typedef struct byte_buf {
   uint8_t *buf;
   int pos;
   size_t bufsize;
 } byte_buf;
 
+/* The question field of a DNS message */
 typedef struct question{
   int name_size;
   uint8_t* NAME;
@@ -24,6 +26,7 @@ typedef struct question{
   uint8_t CLASS[2];
 } question;
 
+/* The answer field of a DNS message */
 typedef struct answer{
   int name_size;
   uint8_t* NAME;
@@ -34,6 +37,7 @@ typedef struct answer{
   uint8_t RDATA[4];
 } answer;
 
+/* Stores all the relevant info about a DNS message */
 typedef struct dns_message{
   uint8_t ID[2];
   int QR;

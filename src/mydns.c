@@ -118,6 +118,11 @@ void delete_bytebuf(struct byte_buf* b)
   free(b);
 }
 
+/* @brief Moves <size> bytes, from the src byte_buf to the dest byte_buf.
+ * @param binaryNumber: Destination byte_buf. Must be at least <size> bytes.
+ * @param tempRequest: Source. Copying from tempRequest->buf
+ * @param size: Number of bytes to copy.
+ */
 void mmemtransfer(byte_buf *dest, byte_buf *src, int size){
 	memmove(dest->buf + dest->pos, src->buf + src->pos, size);
 	dest->pos += size;
@@ -165,6 +170,11 @@ int binary2int(uint8_t *buf, int len){
   return ret;
 }
 
+/* @brief Copies the information from other_half to the info struct.
+ * @param other_half: Bytes 2->4 in the DNS message.
+ * @param info: DNS message struct which stores relvant info.
+ * @param size: Number of bytes to copy.
+ */
 void parse_other_half(uint8_t* other_half, dns_message* info){
 	int other_int = binary2int(other_half, 2);
 	info->QR = other_int & 0x8000;
@@ -179,16 +189,9 @@ void parse_other_half(uint8_t* other_half, dns_message* info){
 	info->RCODE = other_int & 0xF;
 }
 
-void free_question(question* q){
-  if(q->NAME == NULL) free(q->NAME);
-  free(q);
-}
-
-void free_answer(answer* q){
-  if(q->NAME == NULL) free(q->NAME);
-  free(q);
-}
-
+/* @brief Frees the DNS struct.
+ * @param info: DNS message struct which stores relvant info.
+ */
 void free_dns(dns_message* info){
 	int qcount = binary2int(info->QDCOUNT, 2);
 	int acount = binary2int(info->ANCOUNT, 2);
@@ -215,14 +218,18 @@ void free_dns(dns_message* info){
 	return;
 }
 
-//0X2E = "."
-//quora = 0 if question, 1 if answer
+/* @brief Parses and copies the QNAME/NAME field in the DNS message
+ * @param temp_message: The rest of the DNS message.
+ * @param info: DNS message struct which stores relvant info.
+ * @param index: Current question/answer number
+ * @param quora: 0 if question, 1 if answer.
+ */
 void parse_name(byte_buf *temp_message, dns_message* info, int index,
 														  int quora){
 	int total = 1;
 	byte_buf* name_help = create_bytebuf(MAX_MESSAGE_SIZE);
 	uint8_t length[1] = {0};
-	uint8_t period[1] = {0x2E};
+	uint8_t period[1] = {0x2E}; //"."
 	int label_length = 0;
 	mmemclear(name_help);
 
@@ -255,7 +262,9 @@ void parse_name(byte_buf *temp_message, dns_message* info, int index,
 	delete_bytebuf(name_help);
 }
 
-//User responsible for freeing info.
+/* @brief Parses the DNS message and stores the information in a dns struct.
+ * @param message: The DNS message we received.
+ */
 dns_message* parse_message(uint8_t* message){
 	int qd_count;
 	int an_count;
@@ -274,44 +283,46 @@ dns_message* parse_message(uint8_t* message){
   mmemmove(info->ARCOUNT,    temp_message,     2);
 
   qd_count = binary2int(info->QDCOUNT, 2);
-    an_count = binary2int(info->ANCOUNT, 2);
+  an_count = binary2int(info->ANCOUNT, 2);
 
-    //TYPE and CLASS are always 1, but for the sake of generality.
-    if(qd_count){
-    	info->questions = calloc(1, sizeof(question*));
-    	while(counter < qd_count){
-    		(info->questions)[counter] = calloc(1, sizeof(question));
-    		parse_name(temp_message, info, counter, 0);
-    		mmemmove(((info->questions)[counter])->TYPE,  temp_message, 2);
-    		mmemmove(((info->questions)[counter])->CLASS, temp_message, 2);
-    		counter++;
-    	}
-    } else {
-    	info->questions = NULL;
-    }
+  //TYPE and CLASS are always 1, but for the sake of generality.
+  if(qd_count){
+  	info->questions = calloc(1, sizeof(question*));
+  	while(counter < qd_count){
+  		(info->questions)[counter] = calloc(1, sizeof(question));
+  		parse_name(temp_message, info, counter, 0);
+  		mmemmove(((info->questions)[counter])->TYPE,  temp_message, 2);
+  		mmemmove(((info->questions)[counter])->CLASS, temp_message, 2);
+  		counter++;
+  	}
+  } else {
+  	info->questions = NULL;
+  }
 
-    counter = 0;
-    if(an_count){
-    	info->answers = malloc(an_count * sizeof(answer));
-    	while(counter < an_count){
-    		(info->answers)[counter] = calloc(1, sizeof(answer));
-    		parse_name(temp_message, info, counter, 1);
-    		mmemmove(((info->answers)[counter])->TYPE, 		 temp_message, 2);
-    		mmemmove(((info->answers)[counter])->CLASS, 	 temp_message, 2);
-    		mmemmove(((info->answers)[counter])->TTL, 		 temp_message, 2);
-    		mmemmove(((info->answers)[counter])->RDLENGTH, temp_message, 2);
-    		mmemmove(((info->answers)[counter])->RDATA,		 temp_message, 4);
-    		counter++;
-    	}
-    } else {
-    	info->answers = NULL;
-    }
+  counter = 0;
+  if(an_count){
+  	info->answers = malloc(an_count * sizeof(answer));
+  	while(counter < an_count){
+  		(info->answers)[counter] = calloc(1, sizeof(answer));
+  		parse_name(temp_message, info, counter, 1);
+  		mmemmove(((info->answers)[counter])->TYPE, 		 temp_message, 2);
+  		mmemmove(((info->answers)[counter])->CLASS, 	 temp_message, 2);
+  		mmemmove(((info->answers)[counter])->TTL, 		 temp_message, 2);
+  		mmemmove(((info->answers)[counter])->RDLENGTH, temp_message, 2);
+  		mmemmove(((info->answers)[counter])->RDATA,		 temp_message, 4);
+  		counter++;
+  	}
+  } else {
+  	info->answers = NULL;
+  }
 
-    delete_bytebuf(temp_message);
-    return info;
+  delete_bytebuf(temp_message);
+  return info;
 }
 
-//THIS FUNCTION NEEDS SOME TESTING
+/* @brief Generates bytes 2->4 to add to the DNS message.
+ * @param info: DNS message struct which stores relvant info.
+ */
 void gen_other_half(dns_message* info){
 	int final = (info->QR << 15) | (info->OPCODE << 11) |
 				(info->AA << 10) | (info->TC 	 << 9)  |
@@ -322,12 +333,19 @@ void gen_other_half(dns_message* info){
 	dec2hex2binary(final, 4, info->OTHER_HALF);
 }
 
-/* I know, we agreed that some of these values should be 0/1 by default,
- * but I like to be consistent. I take care of any fields explicitly mentioned
- * in the write-up. The rest is up to you.
- *
- * For the question/answer** fields, create an array of allocated questions
- * and answers. It'll make my life easier...
+/* @brief Generates a DNS message.
+ * @param id: The ID of the DNS message.
+ * @param QR: Query/Response field
+ * @param OPCODE: OPCODE field
+ * @param AA: AA field
+ * @param TC: TC field
+ * @param AD: AD field
+ * @param CD: CD field
+ * @param RCODE: RCODE field
+ * @param QDCOUNT: Number of questions
+ * @param ANCOUNT: Number of answers
+ * @param questions: Array of pre-generated questions
+ * @param answers: Array of pre-generated answers.
  */
 byte_buf* gen_message(int id, int QR, int OPCODE, int AA,
                       int TC, int AD, int CD, int RCODE,
@@ -399,7 +417,7 @@ byte_buf* gen_message(int id, int QR, int OPCODE, int AA,
 		counter++;
 	}
 
-	free_dns(info);
+	free_dns(info); //No need for this anymore
 	return temp_message;
 }
 
