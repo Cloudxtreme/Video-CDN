@@ -1,3 +1,4 @@
 *.o
 bitrate-project-starter/
 log/
+grapher.py
