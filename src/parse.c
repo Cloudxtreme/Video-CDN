@@ -63,8 +63,10 @@ void getSubstring(char *dest, char *src, int start, int end){
     strncat(dest, "\0", 1);
 }
 
-//Should calculate the bitrate by first finding the throughput and then
-//comparing the result to the approprtiate bitrate in the global array.
+/* @brief Calculates the throughput and updates the average throughput and 
+          bitrate.
+ * @param state: Struct containing relevant info
+ */
 void calculate_bitrate(fsm* state){
 
   /* Not a chunk, just an html page or something */
@@ -123,7 +125,10 @@ void calculate_bitrate(fsm* state){
   //  printf("Current best: %lld \n", state->current_best);
 }
 
-/* Copies some relevant information into my superior struct. */
+/* @brief Copies some relevant information into an easier to use struct
+ * @param my_req: Destination struct
+ * @param client: Source struct
+ */
 void copy_info(client_req *my_req, struct state *client){
   memcpy(my_req->req_type, client->method, strlen(client->method));
   memcpy(my_req->URI, client->uri, strlen(client->uri));
@@ -132,6 +137,9 @@ void copy_info(client_req *my_req, struct state *client){
   my_req->bitrate = client->current_best; //Change later
 }
 
+/* @brief Stores the file location (excluding the file) in the struct
+ * @param my_req: Struct containing relevant info
+ */
 void parse_URI(client_req *my_req){
   int  last_pos = 0;
   char *last_slash = strstr(my_req->URI, "/");
@@ -158,7 +166,9 @@ void parse_URI(client_req *my_req){
   memcpy(my_req->path, temp, strlen(temp));
 }
 
-//Assumes we're dealing with video chunk
+/* @brief Retrieves the segment and fragment number.
+ * @param my_req: Struct containing relevant info
+ */
 void parse_file(client_req *my_req){
   char str_bitrate[BUF_SHORT];
   char str_seq_num[BUF_SHORT];
@@ -201,11 +211,9 @@ void parse_file(client_req *my_req){
   my_req->fragno = atoi(str_frag_num);
 }
 
-/*
-	1. Get the URI, request type, version, bitrate, blah.
-	2. If possible, get the segno. Set the content_type value.
-	3. Generate the server response.
-*/
+/* @brief Parses the client's message and stores the info in the state.
+ * @param client: Struct where all the info will be stored.
+ */
 void parse_client_message(struct state *client){
   char response[BUF_SHORT];
   char response2[BUF_SHORT];
