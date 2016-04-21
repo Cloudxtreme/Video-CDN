@@ -102,10 +102,8 @@ int parse_line(fsm* state)
 /*******************************************************************/
 int parse_headers(fsm* state)
 {
-  char* CRLF; char* tmpbuf; char* body_size;
+  char* CRLF; char* tmpbuf;
   char* hdr_start;
-
-  size_t length;
 
   CRLF = memmem(state->request, state->end_idx, "\r\n\r\n", strlen("\r\n\r\n"));
 
@@ -133,40 +131,6 @@ int parse_headers(fsm* state)
 
   state->header = strndup(hdr_start, (size_t)(CRLF+4 - hdr_start));
   addtofree(state->freebuf, state->header, FREE_SIZE);
-
-  if(strncmp(state->method,"POST",strlen("POST")))
-    {
-      return 0;
-    }
-
-  /* Now extract Content-Length: if POST */
-
-  tmpbuf = memmem(state->request, state->end_idx, "Content-Length:",
-                  strlen("Content-Length:"));
-
-  if(tmpbuf == NULL)
-    return 411;
-
-  CRLF = memmem(tmpbuf, state->end_idx, "\r\n", strlen("\r\n"));
-  length = (size_t)(CRLF - tmpbuf);
-  tmpbuf = strndup(tmpbuf, length); // Free this guy please.
-
-  if(strtok(tmpbuf," ") == NULL)
-    {free(tmpbuf); return 411;}
-
-  if((body_size = strtok(NULL, " ")) == NULL)
-    {free(tmpbuf); return 411;}
-
-  /* Check for valid Content-Length */
-  if(!validsize(body_size))
-    {free(tmpbuf); return 411;}
-
-  /* If there's one more token, malformed request */
-  if(strtok(NULL," ") != NULL)
-    {free(tmpbuf); return 400;}
-
-  state->body_size = (size_t)atoi(body_size);
-  free(tmpbuf);
 
   return 0;
 }

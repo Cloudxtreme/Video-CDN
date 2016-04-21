@@ -49,7 +49,7 @@ void add_client(int client_fd, pool *p);
 void check_clients(pool *p, int dns_sock);
 void cleanup(int sig);
 void sigchld_handler(int sig);
-int connect_server(fsm* state, char* webip, in_addr_t dnsip);
+int connect_server(fsm* state, char* webip);
 
 /** Definitions **/
 
@@ -290,7 +290,7 @@ void add_client(int client_fd, pool *p)
     state->version    = NULL;
     state->header     = NULL;
     state->body       = NULL;
-    state->body_size  = -1; // No body as of yet
+    state->body_size  = 0; // No body as of yet
 
     state->end_idx    = 0;
     state->resp_idx   = 0;
@@ -301,7 +301,7 @@ void add_client(int client_fd, pool *p)
     state->avg_tput   = global_smallest;
 
     if(!dns)
-        connect_server(state, www_ip, 0);
+        connect_server(state, www_ip);
     else
         resolve("video.cs.cmu.edu", "8080", NULL, NULL);
 
@@ -314,7 +314,9 @@ void add_client(int client_fd, pool *p)
 
             /* Add the descriptor to the master set */
             FD_SET(client_fd, &p->masterfds);
-            FD_SET(state->servfd, &p->masterfds);
+
+            if(!dns)
+                FD_SET(state->servfd, &p->masterfds);
 
             /* Add fsm to pool */
             p->states[i] = state;
@@ -326,7 +328,7 @@ void add_client(int client_fd, pool *p)
             if (client_fd > p->maxfd)
                 p->maxfd = client_fd;
 
-            if(state->servfd > p->maxfd)
+            if(!dns && state->servfd > p->maxfd)
                 p->maxfd = state->servfd;
 
             if (i > p->maxi)
@@ -382,7 +384,7 @@ void check_clients(pool *p, int dns_sock)
               uint8_t              buf[BUFLEN]  = {0};
               struct  sockaddr_in  from         = {0};
               socklen_t            fromlen      = sizeof(from);
-              //size_t               n            = 0;
+              struct in_addr       ipblk        = {0};
               answer*              reply        = NULL;
 
               recvfrom(dns_sock, buf, BUFLEN, 0,
@@ -391,21 +393,26 @@ void check_clients(pool *p, int dns_sock)
               dns_message* msg = parse_message(buf);
               reply            = msg->answers[0];
 
-              in_addr_t ip     = (in_addr_t) binary2int(reply->RDATA, 4);
+              in_addr_t ip     = (in_addr_t) (binary2int(reply->RDATA, 4));
+              ipblk.s_addr     = ip;
 
-                connect_server(state, NULL, ip);
+              connect_server(state, inet_ntoa(ipblk));
 
-                /* Free memory */
-                free_dns(msg);
+              /* Add servfd to select() */
+              FD_SET(state->servfd, &p->masterfds);
+              p->maxfd = state->servfd;
 
-                /* Not requesting DNS anymore...*/
-                p->dns[i] = false;
+              /* Free memory */
+              free_dns(msg);
+
+              /* Not requesting DNS anymore...*/
+              p->dns[i] = 0;
             }
             /* DNS requested but never came...*/
             else if(p->dns[i])
+            {
                 continue;
-
-            /* DNS requested and received, proceed. */
+            }
         }
 
         /* If a descriptor is ready to be read, read a line from it */
@@ -461,27 +468,6 @@ void check_clients(pool *p, int dns_sock)
                             rm_client(client_fd, p, i);
                             break;
                         }
-                    }
-
-                    /* If POST, parse the body */
-                    if(!strncmp(state->method, "POST", strlen("POST")) &&
-                       state->body == NULL)
-                    {
-                        if((error = parse_body(state)) != 0 && error != -1)
-                        {
-                            client_error(state, error);
-                            if (Send(client_fd, state->response, state->resp_idx) !=
-                                state->resp_idx)
-                            {
-                                rm_client(client_fd, p, i);
-                                break;
-                            }
-                            rm_client(client_fd, p, i);
-                            break;
-                        }
-
-                        /* Incomplete request, save and continue to next client */
-                        if(error == -1) break;
                     }
 
                     /* If everything has been parsed, service the client */
@@ -567,6 +553,7 @@ void check_clients(pool *p, int dns_sock)
                         /* Calculate new throughput here */
                         calculate_bitrate(state);
 
+                        state->body_size = 0;
                         break;
                     }
 
@@ -738,14 +725,14 @@ sigchld_handler(int sig)
 /* @brief Connects to the webserver that has the videos.    */
 /* @param state - The state of the client behind the proxy. */
 /************************************************************/
-int connect_server(fsm* state, char* webip, in_addr_t dnsip)
+int connect_server(fsm* state, char* webip)
 {
     int status, sock;
     struct addrinfo hints; struct sockaddr_in fake;
     struct addrinfo *servinfo; //will point to the results
 
     memset(&hints, 0, sizeof (hints));
-    hints.ai_family = AF_UNSPEC;     //don't care IPv4 or IPv6
+    hints.ai_family = AF_INET;     //don't care IPv4 or IPv6
     hints.ai_socktype = SOCK_STREAM; //TCP stream sockets
     hints.ai_flags = AI_PASSIVE;     //fill in my IP for me
 
@@ -757,24 +744,10 @@ int connect_server(fsm* state, char* webip, in_addr_t dnsip)
     fake.sin_port        = 0;
 
     /* Connect to the www_ip. */
-    if(webip)
+    if ((status = getaddrinfo(webip, "8080", &hints, &servinfo)) != 0)
     {
-        if ((status = getaddrinfo(webip, "8080", &hints, &servinfo)) != 0)
-        {
-            fprintf(stderr, "getaddrinfo error: %s \n", gai_strerror(status));
-            return EXIT_FAILURE;
-        }
-    }
-    /* connect to the ip retrieved from the dns request */
-    else
-    {
-        struct sockaddr_in serv = {0};
-
-        serv.sin_family      = AF_INET;
-        serv.sin_port        = 8080;
-        serv.sin_addr.s_addr = htonl(dnsip);
-
-        servinfo             = (struct addrinfo *)&serv;
+        fprintf(stderr, "getaddrinfo error: %s \n", gai_strerror(status));
+        return EXIT_FAILURE;
     }
 
     if((sock = socket(servinfo->ai_family, servinfo->ai_socktype,
@@ -784,30 +757,21 @@ int connect_server(fsm* state, char* webip, in_addr_t dnsip)
         return EXIT_FAILURE;
     }
 
-
-    /* Bind this socket to the fake-ip with an ephemeral port */
-    bind(sock, (struct sockaddr *) &fake, sizeof(fake));
-
     if (connect (sock, servinfo->ai_addr, servinfo->ai_addrlen) == -1)
     {
         fprintf(stderr, "Connect");
-        return EXIT_FAILURE;
+            return EXIT_FAILURE;
     }
+
+    /* Bind this socket to the fake-ip with an ephemeral port */
+    bind(sock, (struct sockaddr *) &fake, sizeof(fake));
 
     /* We now have a unique connection established for this client */
     state->servfd = sock;
     state->servst = calloc(sizeof(struct serv_rep), 1);
 
-    if(webip)
-        strncpy(state->serv_ip, webip, INET_ADDRSTRLEN);
-    else
-    {
-        struct sockaddr_in* s = (struct sockaddr_in *) servinfo;
-        strncpy(state->serv_ip, inet_ntoa(s->sin_addr), INET_ADDRSTRLEN);
-    }
-
-    if(webip)
-        freeaddrinfo(servinfo);
+    strncpy(state->serv_ip, webip, INET_ADDRSTRLEN);
+    freeaddrinfo(servinfo);
 
     return EXIT_SUCCESS;
 }

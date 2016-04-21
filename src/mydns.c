@@ -445,7 +445,7 @@ byte_buf* gen_QNAME(char* name, size_t len)
 
       word = strtok(NULL, ".");
     }
-    
+
   free(data);
   return label;
 }
@@ -467,7 +467,7 @@ void gen_RDATA(char* ip, uint8_t* ans)
 
   iphex = inet_addr(ip);
 
-  dec2hex2binary((int) iphex, 4, ans);
+  dec2hex2binary((int) iphex, 8, ans);
 }
 
 /******************************************************************/

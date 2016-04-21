@@ -24,9 +24,9 @@
 #define LOG_SIZE  1024
 #define FREE_SIZE 40
 
-#define NOLIST  1
-#define REGF4M  2
-#define VIDEO   3
+#define NOLIST    1
+#define REGF4M    2
+#define VIDEO     3
 
 struct serv_rep {
   char response[BUF_SIZE]; // arr of chars containing response from server.
