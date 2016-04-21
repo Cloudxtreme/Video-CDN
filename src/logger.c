@@ -56,7 +56,7 @@ int log_state(fsm* state, FILE* file, unsigned long long tput, char* chunkname,
   if(strlen(chunkname) == 0)
     return 0;
 
-  fprintf(file, "%ld %f %llu %llu %llu %s %s \n",
+  fprintf(file, "%ld %f %llu %llu %llu %s %s\n",
           time(NULL),
           elapsed,
           tput,
